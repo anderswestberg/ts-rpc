@@ -1,0 +1,22 @@
+{
+  "name": "@decthings/ds-nodes",
+  "version": "0.0.0",
+  "description": "JavaScript communications and RPC system",
+  "main": "dist/index.js",
+  "browser": "dist/index-web.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/decthings/ds-nodes.git"
+  },
+  "author": "Decthings",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^7.3.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^7.2.6"
+  }
+}
