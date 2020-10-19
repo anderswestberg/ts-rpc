@@ -3,8 +3,11 @@ import { IDsModule, DsModule } from '../Core'
 export type SourcedMessage<MSG = any, SRC = any> = { source: SRC; message: MSG }
 export type TargetedMessage<MSG = any, TRGT = any> = { target: TRGT; message: MSG }
 
-export function TargetNotFoundError() {
-    return new Error('ETARGET. Target not found.')
+export class TargetNotFoundError extends Error {
+    constructor(module: string) {
+        super(`${module}: Target not found.`)
+        this.name = 'TargetNotFoundError'
+    }
 }
 
 /**

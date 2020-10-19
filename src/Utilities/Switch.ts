@@ -6,10 +6,19 @@ import { TargetNotFoundError, TargetedMessage } from './Targets'
  */
 export class Switch<MsgType = any, TrgtType = any> extends DsModule<TargetedMessage<MsgType, TrgtType>> {
     private targets = new Map<TrgtType, IDsModule<MsgType> | ((message: MsgType) => void)>()
+    constructor(
+        sources: IDsModule<any, TargetedMessage<MsgType, TrgtType>>[],
+        private getTarget?: (target: TrgtType) => IDsModule<MsgType> | ((message: MsgType) => void)
+    ) {
+        super(sources)
+    }
     receive(message: TargetedMessage<MsgType, TrgtType>) {
         let target = this.targets.get(message.target)
+        if (!target && this.getTarget) {
+            target = this.getTarget(message.target)
+        }
         if (!target) {
-            throw TargetNotFoundError()
+            throw new TargetNotFoundError('Switch')
         }
         if (typeof target === 'function') {
             return target(message.message)

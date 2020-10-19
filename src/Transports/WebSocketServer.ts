@@ -175,7 +175,7 @@ export class WebSocketServer extends DsModule_Emitter<InputType, OutputType> {
             throw ws.error
         }
         if (!ws.ws!.clients.has(message.target)) {
-            throw TargetNotFoundError()
+            throw new TargetNotFoundError('TargetNotFoundError')
         }
         message.target.send(message.message, this.options.wsSendOptions || {})
     }

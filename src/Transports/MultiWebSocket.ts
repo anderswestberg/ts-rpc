@@ -60,7 +60,7 @@ export class MultiWebSocketTransport<TrgtType = unknown> extends DsModule_Emitte
             }
         }
 
-        throw TargetNotFoundError()
+        throw new TargetNotFoundError('MultiWebSocketTransport')
     }
 
     /**
@@ -277,7 +277,7 @@ export class MultiWebSocketTransport<TrgtType = unknown> extends DsModule_Emitte
                 return
             }
         }
-        throw TargetNotFoundError()
+        throw new TargetNotFoundError('MultiWebSocketTransport')
     }
 
     /**
