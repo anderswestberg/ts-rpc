@@ -4,7 +4,7 @@ import { DsModule } from '../Core'
 import { SourcedMessage, TargetedMessage } from '../Utilities/Targets'
 
 /**
- * Exposes a class instance over RPC.
+ * Exposes functions over RPC.
  *
  * Will accept messages from multiple sources, and will make sure to send the response to the correct target.
  */
@@ -20,6 +20,9 @@ export class RpcServer<SrcType = any> extends DsModule<
         })
     }
 
+    /**
+     * Emit an event to clients.
+     */
     sendEvent(serviceName: string, target: SrcType, event: string, params: any[]) {
         return this.send({ target, message: { serviceName, event, params } })
     }

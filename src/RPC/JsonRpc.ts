@@ -1,16 +1,16 @@
-type RpcErrorResponse = {
+export type RpcErrorResponse = {
     id: number
     clientId: number
-    error: { code: 'InternalError' | 'MethodNotFound' | 'InvalidRequest'; message: string; errorDetails?: any }
+    error: { code: 'InternalError' | 'MethodNotFound'; message: string; errorDetails?: any }
 }
 
-type RpcSuccessfulResponse = {
+export type RpcSuccessfulResponse = {
     id: number
     clientId: number
     result: any
 }
 
-type RpcEventMessage = {
+export type RpcEventMessage = {
     event: string
     params: any[]
     serviceName: string
@@ -34,7 +34,10 @@ export class JsonRpc {
      * Expose all the methods of a class instance.
      * @param instance The instance to expose - all the methods on this instance will be exposed.
      * @param serviceName A unique name for this service - the client must use the same name.
-     * @param prototypeSteps The number of steps up the prototype chain to iterate when exposing the methods. Set to 0 to only expose the instance's own methods, or -1 to iterate the entire prototype chain. Defaults to 0.
+     * @param prototypeSteps The number of steps up the prototype chain to iterate when exposing the methods.
+     * Set to 0 to only expose the instance's own methods.
+     * Set to-1 to iterate the entire prototype chain. If a prototype named "Object" is encountered the iteration will stop, and that prototype will not be included.
+     * Defaults to 0.
      */
     exposeClassInstance(instance: any, serviceName: string, prototypeSteps: number = 0) {
         // Iterate upwards to find all the methods within the prototype chain.
@@ -71,10 +74,6 @@ export class JsonRpc {
     }
 
     async receive(req: RpcRequest, source?: any): Promise<RpcResponse> {
-        if (!req) {
-            return { id: -1, clientId: -1, error: { code: 'InvalidRequest', message: 'Invalid request.' } }
-        }
-
         let handler = this.exposedMethodsMap.get(req.serviceName + '.' + req.method)
         if (!handler) {
             return {

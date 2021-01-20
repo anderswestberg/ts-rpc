@@ -78,8 +78,8 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
             if (this.options.address) {
                 this.opened = true
             } else {
-                await new Promise(resolve => {
-                    this.onAddressProvided = resolve
+                await new Promise(_resolve => {
+                    this.onAddressProvided = _resolve
                 })
             }
 

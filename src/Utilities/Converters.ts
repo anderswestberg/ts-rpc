@@ -12,14 +12,14 @@ export class Converter<I = any, O = any> extends DsModule<I, O> {
     }
 }
 
-export function JsonStringifier<T = any>(sources?: IDsModule<any, any>[]) {
-    return new Converter<T, string>(sources || [], message => {
-        return JSON.stringify(message)
-    })
+export class JsonStringifier<I = any> extends Converter<I, string> {
+    constructor(sources?: IDsModule<any, I>[]) {
+        super(sources || [], (msg) => JSON.stringify(msg))
+    }
 }
 
-export function JsonParser<T = any>(sources?: IDsModule<any, string>[]) {
-    return new Converter<string, T>(sources || [], message => {
-        return JSON.parse(message)
-    })
+export class JsonParser<O = any> extends Converter<string, O> {
+    constructor(sources?: IDsModule<any, string>[]) {
+        super(sources || [], (msg) => JSON.parse(msg))
+    }
 }

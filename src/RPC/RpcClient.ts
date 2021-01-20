@@ -3,11 +3,7 @@ import { RpcResponse, RpcRequest } from './JsonRpc'
 import { EventEmitter } from 'events'
 
 export class RpcError {
-    constructor(
-        public code: 'MethodNotFound' | 'InvalidRequest' | 'Exception' | 'InvalidResponse',
-        public message: string,
-        public errorDetails?: any
-    ) {}
+    constructor(public code: 'MethodNotFound' | 'InvalidRequest' | 'Exception' | 'InvalidResponse', public message: string, public errorDetails?: any) {}
 }
 
 export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
@@ -25,47 +21,32 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
     private static clientIdCounter = 0
     private clientId = RpcClient.clientIdCounter++
 
-    receive(message: any) {
-        if (!message) {
-            return
-        }
-        if (message.event) {
-            if (typeof message.event !== 'string') {
-                return
-            }
-            if (!Array.isArray(message.params)) {
-                return
-            }
-            let emitter = this.eventEmitterMap.get(message.serviceName)
+    receive(message: RpcResponse) {
+        const _message = message as any
+        if (_message.event) {
+            let emitter = this.eventEmitterMap.get(_message.serviceName)
             if (emitter) {
-                emitter.emit(message.event, ...message.params)
+                emitter.emit(_message.event, ..._message.params)
             }
-            this.emit('event', message.serviceName, message.event, message.params)
+            this.emit('event', _message.serviceName, _message.event, _message.params)
             return
         }
-        if (message.clientId !== this.clientId) {
+        if (_message.clientId !== this.clientId) {
             return
         }
-        const promise = this.responsePromiseMap.get(message.id)
-        this.responsePromiseMap.delete(message.id)
+        const promise = this.responsePromiseMap.get(_message.id)
         if (!promise) {
             return
         }
-        if (message.error) {
-            if (
-                message.error.code !== 'InternalError' &&
-                message.error.code !== 'MethodNotFound' &&
-                message.error.code !== 'InvalidRequest'
-            ) {
-                promise.reject(new RpcError('InvalidResponse', 'Invalid response from server.'))
-            }
-            promise.reject(new RpcError(message.error.code, message.error.message, message.error.errorDetails))
+        this.responsePromiseMap.delete(_message.id)
+        if (_message.error) {
+            promise.reject(new RpcError(_message.error.code, _message.error.message, _message.error.errorDetails))
         } else {
-            promise.resolve(message.result)
+            promise.resolve(_message.result)
         }
     }
 
-    public call(serviceName: string, method: string, additionalParameter: any, ...params: any[]): Promise<any> {
+    public call(serviceName: string, method: string, additionalParameter: any, ...params: string[]): Promise<any> {
         const id = this.messageIdCounter++
         const message: RpcRequest = {
             id,
@@ -103,7 +84,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
                         prop === 'emit' ||
                         prop === 'removeListener' ||
                         prop === 'removeAllListeners' ||
-                        prop === 'setMaxListeners' || 
+                        prop === 'setMaxListeners' ||
                         prop === 'getMaxListeners')
                 ) {
                     if (!this.eventEmitterMap.has(serviceName)) {

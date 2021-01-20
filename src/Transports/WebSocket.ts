@@ -83,8 +83,8 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                 this.opened = true
             } else {
                 // Address wasn't provided, so we must wait for the open() call to receive the addresss.
-                await new Promise(resolve => {
-                    this.onAddressProvided = resolve
+                await new Promise(_resolve => {
+                    this.onAddressProvided = _resolve
                 })
             }
 
