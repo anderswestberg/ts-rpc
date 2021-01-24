@@ -1,7 +1,7 @@
 export type RpcErrorResponse = {
     id: number
     clientId: number
-    error: { code: 'MethodNotFound' } | { code: 'Exception'; details?: string }
+    error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }
 }
 
 export type RpcSuccessfulResponse = {
@@ -100,18 +100,12 @@ export class JsonRpc {
         try {
             var result = await handler(...params)
         } catch (e) {
-            let errorDetails = e instanceof Error ? { name: e.name, message: e.message } : e
-            try {
-                JSON.stringify(errorDetails)
-            } catch {
-                errorDetails = undefined
-            }
             return {
                 id: req.id,
                 clientId: req.clientId,
                 error: {
                     code: 'Exception',
-                    details: errorDetails
+                    exception: e
                 }
             }
         }
