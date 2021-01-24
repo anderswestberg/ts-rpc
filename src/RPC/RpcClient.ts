@@ -1,15 +1,22 @@
 import { DsModule_Emitter } from '../Core'
-import { RpcResponse, RpcRequest } from './JsonRpc'
+import { RpcResponse, RpcRequest, RpcEventMessage, RpcErrorResponse } from './JsonRpc'
 import { EventEmitter } from 'events'
 
 export class RpcError {
-    constructor(public code: 'MethodNotFound' | 'InvalidRequest' | 'Exception' | 'InvalidResponse', public message: string, public errorDetails?: any) {}
+    constructor(public error: { code: 'MethodNotFound' } | { code: 'Exception'; details?: string }) {}
 }
 
 export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
     on(event: 'event', handler: (serviceName: string, _event: string, params: any[]) => void): this
     emit(event: 'event', serviceName: string, _event: string, params: any[]): boolean
     removeListener(event: 'event', handler: (serviceName: string, _event: string, params: any[]) => void): this
+}
+
+function isEventMessage(message: RpcResponse): message is RpcEventMessage {
+    return Boolean((message as any).event)
+}
+function isErrorResponse(message: RpcResponse): message is RpcErrorResponse {
+    return Boolean((message as any).error)
 }
 
 export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
@@ -22,27 +29,26 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
     private clientId = RpcClient.clientIdCounter++
 
     receive(message: RpcResponse) {
-        const _message = message as any
-        if (_message.event) {
-            let emitter = this.eventEmitterMap.get(_message.serviceName)
+        if (isEventMessage(message)) {
+            let emitter = this.eventEmitterMap.get(message.serviceName)
             if (emitter) {
-                emitter.emit(_message.event, ..._message.params)
+                emitter.emit(message.event, ...message.params)
             }
-            this.emit('event', _message.serviceName, _message.event, _message.params)
+            this.emit('event', message.serviceName, message.event, message.params)
             return
         }
-        if (_message.clientId !== this.clientId) {
+        if (message.clientId !== this.clientId) {
             return
         }
-        const promise = this.responsePromiseMap.get(_message.id)
+        const promise = this.responsePromiseMap.get(message.id)
         if (!promise) {
             return
         }
-        this.responsePromiseMap.delete(_message.id)
-        if (_message.error) {
-            promise.reject(new RpcError(_message.error.code, _message.error.message, _message.error.errorDetails))
+        this.responsePromiseMap.delete(message.id)
+        if (isErrorResponse(message)) {
+            promise.reject(new RpcError(message.error))
         } else {
-            promise.resolve(_message.result)
+            promise.resolve(message.result)
         }
     }
 

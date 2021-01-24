@@ -1,7 +1,7 @@
 export type RpcErrorResponse = {
     id: number
     clientId: number
-    error: { code: 'InternalError' | 'MethodNotFound'; message: string; errorDetails?: any }
+    error: { code: 'MethodNotFound' } | { code: 'Exception'; details?: string }
 }
 
 export type RpcSuccessfulResponse = {
@@ -80,8 +80,7 @@ export class JsonRpc {
                 id: req.id,
                 clientId: req.clientId,
                 error: {
-                    code: 'MethodNotFound',
-                    message: `MethodNotFound: '${req.method}' on service '${req.serviceName}' wasn't found`
+                    code: 'MethodNotFound'
                 }
             }
         }
@@ -111,9 +110,8 @@ export class JsonRpc {
                 id: req.id,
                 clientId: req.clientId,
                 error: {
-                    code: 'InternalError',
-                    message: `InternalError: Internal error when calling '${req.method}'`,
-                    errorDetails
+                    code: 'Exception',
+                    details: errorDetails
                 }
             }
         }
