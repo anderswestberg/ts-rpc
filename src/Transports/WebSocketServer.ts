@@ -154,7 +154,7 @@ export class WebSocketServer extends DsModule_Emitter<InputType, OutputType> {
             let ws = new WebSocket.Server(this.options.wsOptions)
             let closeListener = () => {
                 ws.close()
-                resolve()
+                resolve(null)
             }
             this.previousCloseListener = closeListener
             this.once('close', closeListener)

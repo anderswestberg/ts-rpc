@@ -78,7 +78,7 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
             if (this.options.address) {
                 this.opened = true
             } else {
-                await new Promise(_resolve => {
+                await new Promise<void>(_resolve => {
                     this.onAddressProvided = _resolve
                 })
             }
@@ -154,7 +154,7 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
             let ws = new WebSocket(this.options.address || 'ws://127.0.0.1:80')
             let closeListener = () => {
                 ws.close()
-                resolve()
+                resolve(null)
             }
             this.previousCloseListener = closeListener
             this.once('close', closeListener)

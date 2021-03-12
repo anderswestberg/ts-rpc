@@ -83,7 +83,7 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                 this.opened = true
             } else {
                 // Address wasn't provided, so we must wait for the open() call to receive the addresss.
-                await new Promise(_resolve => {
+                await new Promise<void>(_resolve => {
                     this.onAddressProvided = _resolve
                 })
             }
@@ -159,7 +159,7 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
             let ws = new WebSocket(this.options.address || 'ws://127.0.0.1:80', this.options.wsOptions)
             let closeListener = () => {
                 ws.close()
-                resolve()
+                resolve(null)
             }
             this.previousCloseListener = closeListener
             this.once('close', closeListener)

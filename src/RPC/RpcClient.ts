@@ -25,9 +25,6 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
 
     private eventEmitterMap = new Map<string, EventEmitter>()
 
-    private static clientIdCounter = 0
-    private clientId = RpcClient.clientIdCounter++
-
     receive(message: RpcResponse) {
         if (isEventMessage(message)) {
             let emitter = this.eventEmitterMap.get(message.serviceName)
@@ -35,9 +32,6 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
                 emitter.emit(message.event, ...message.params)
             }
             this.emit('event', message.serviceName, message.event, message.params)
-            return
-        }
-        if (message.clientId !== this.clientId) {
             return
         }
         const promise = this.responsePromiseMap.get(message.id)
@@ -56,7 +50,6 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
         const id = this.messageIdCounter++
         const message: RpcRequest = {
             id,
-            clientId: this.clientId,
             method: method as any,
             params,
             serviceName,

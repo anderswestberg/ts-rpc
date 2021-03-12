@@ -1,12 +1,10 @@
 export type RpcErrorResponse = {
-    id: number
-    clientId: number
+    id: any
     error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }
 }
 
 export type RpcSuccessfulResponse = {
-    id: number
-    clientId: number
+    id: any
     result: any
 }
 
@@ -19,8 +17,7 @@ export type RpcEventMessage = {
 export type RpcResponse = RpcErrorResponse | RpcSuccessfulResponse | RpcEventMessage
 
 export type RpcRequest = {
-    id: number
-    clientId: number
+    id: any
     method: string
     params: any[]
     serviceName: string
@@ -78,7 +75,6 @@ export class JsonRpc {
         if (!handler) {
             return {
                 id: req.id,
-                clientId: req.clientId,
                 error: {
                     code: 'MethodNotFound'
                 }
@@ -102,7 +98,6 @@ export class JsonRpc {
         } catch (e) {
             return {
                 id: req.id,
-                clientId: req.clientId,
                 error: {
                     code: 'Exception',
                     exception: e
@@ -110,6 +105,6 @@ export class JsonRpc {
             }
         }
 
-        return { id: req.id, clientId: req.clientId, result }
+        return { id: req.id, result }
     }
 }
