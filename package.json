@@ -1,6 +1,6 @@
 {
   "name": "@decthings/ds-nodes",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "JavaScript communications and RPC system",
   "main": "dist/index.js",
   "browser": "dist/index-web.js",
