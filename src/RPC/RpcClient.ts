@@ -2,8 +2,16 @@ import { DsModule_Emitter } from '../Core'
 import { RpcResponse, RpcRequest, RpcEventMessage, RpcErrorResponse } from './RpcServer'
 import { EventEmitter } from 'events'
 
-export class RpcError {
-    constructor(public error: { code: 'MethodNotFound' } | { code: 'Exception'; details?: string }) {}
+export class RpcError extends Error {
+    error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }
+    constructor(error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }) {
+        if (error.code === 'MethodNotFound') {
+            super('RpcClient: The called method was not found on the server.')
+        } else {
+            super('RpcClient: The server responded with an exception -  ' + error.exception)
+        }
+        this.error = error
+    }
 }
 
 export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
