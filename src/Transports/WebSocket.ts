@@ -4,10 +4,10 @@ import { IDsModule, DsModule_Emitter } from '../Core'
 
 export type WebSocketTransportOptions = {
     address?: string
-    wsOptions?: WebSocket.ClientOptions
     wsOpenTimeout?: number
     openRetryTimes?: number
     openTimeout?: number
+    wsOptions?: WebSocket.ClientOptions
     wsSendOptions?: { mask?: boolean; binary?: boolean; compress?: boolean; fin?: boolean }
 }
 
@@ -68,13 +68,12 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
         this.onAddressProvided()
     }
     private previousCloseListener?: () => void
-    private onAddressProvided = () => { }
+    private onAddressProvided = () => {}
     private connectWs() {
         if (this.previousCloseListener) {
             this.removeListener('close', this.previousCloseListener)
         }
         if (this.closed) {
-            delete this.wsPromise
             this.wsPromise = Promise.resolve({ error: new Error('WebSocketTransport was closed') })
             return
         }
@@ -96,9 +95,7 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                     didTimeout = true
                     this.emit('openTimeoutExceeded', this.options.openTimeout)
                     resolve({
-                        error: new Error(
-                            `WebSocketTransport: Unable to open connection. Timed out after ${this.options.openTimeout}ms`
-                        )
+                        error: new Error(`WebSocketTransport: Unable to open connection. Timed out after ${this.options.openTimeout}ms`)
                     })
                 }, this.options.openTimeout)
             }
@@ -190,9 +187,8 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
         if (ws.error) {
             throw ws.error
         }
-        if (ws.ws!.readyState !== ws.ws.OPEN) {
-            await this.receive(message)
-            return
+        if (ws.ws.readyState !== ws.ws.OPEN) {
+            return this.receive(message)
         }
         ws.ws.send(message, this.options.wsSendOptions || {})
     }

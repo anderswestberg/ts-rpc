@@ -74,10 +74,10 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
             return
         }
         this.wsPromise = new Promise(async resolve => {
-            // Address wasn't provided, so we must wait for the open() call to receive the addresss.
             if (this.options.address) {
                 this.opened = true
             } else {
+                // Address wasn't provided, so we must wait for the open() call to receive the addresss.
                 await new Promise<void>(_resolve => {
                     this.onAddressProvided = _resolve
                 })
@@ -180,10 +180,13 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
             }
         })
     }
-    async receive(message: string | Buffer) {
+    async receive(message: MsgType) {
         let ws = await this.wsPromise
         if (ws.error) {
             throw ws.error
+        }
+        if (ws.ws.readyState !== ws.ws.OPEN) {
+            return this.receive(message)
         }
         ws.ws.send(message)
     }
