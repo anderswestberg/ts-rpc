@@ -2,21 +2,74 @@ import * as WebSocket from 'ws'
 
 import { IDsModule, DsModule_Emitter } from '../Core'
 
+export class WebSocketTransportError extends Error {
+    public code: 'sendMessageTimeoutExceeded' | 'openTimeoutExceeded' | 'openRetryTimesExceeded' | 'closed'
+    constructor(code: 'sendMessageTimeoutExceeded' | 'openTimeoutExceeded' | 'openRetryTimesExceeded' | 'closed') {
+        if (code === 'sendMessageTimeoutExceeded') {
+            super('WebSocketTransport: Unable to send message - sendMessageTimeout exceeded.')
+        } else if (code === 'openTimeoutExceeded') {
+            super('WebSocketTransport: Unable to open transport - maximum timeout exceeded.')
+        } else if (code === 'openRetryTimesExceeded') {
+            super('WebSocketTransport: Unable to open transport - maximum retry times exceeded.')
+        } else {
+            super('WebSocketTransport: The transport was closed.')
+        }
+        this.code = code
+    }
+}
+
 export type WebSocketTransportOptions = {
+    /**
+     * The address to connect to, if the transport should be opened immediately. Should include protocol, IP and port - e.g. ws://localhost:3000.
+     * If not provided, open the transport with open(address).
+     */
     address?: string
+    /**
+     * Time in milliseconds to attempt to open a socket, before closing the individual socket and retrying with a new one.
+     * If negative, no limit is enforced.
+     *
+     * Default: -1.
+     */
     wsOpenTimeout?: number
+    /**
+     * Optional number of failed individual sockets in a row, before closing and emitting "openRetryTimesExceeded" event.
+     * If negative, any number of retries are allowed. If zero, no retries are allowed.
+     *
+     * Default: -1.
+     */
     openRetryTimes?: number
+    /**
+     * Time in milliseconds to attempt to open the transport, before closing and emitting "openTimeoutExceeded" event.
+     * If negative, no limit is enforced.
+     *
+     * Default: -1
+     */
     openTimeout?: number
+    /**
+     * Time in milliseconds to spend waiting for the socket to open when attempting to send a message,
+     * before aborting and trowing a WebSocket error with code "SendMessageTimeoutExceeded".
+     * If negative, a timer will not be used and the message will be attempted to be sent indefinetely.
+     * If zero, a timer will not be used and the send will immediately fail if the socket is not open.
+     *
+     * Default: -1
+     */
+    sendMessageTimeout?: number
+    /**
+     * Options to pass to the WebSocket client. See the underlying 'ws' package for details.
+     */
     wsOptions?: WebSocket.ClientOptions
+    /**
+     * Options to pass to the send method on the WebSocket client. See the underlying 'ws' package for details.
+     */
     wsSendOptions?: { mask?: boolean; binary?: boolean; compress?: boolean; fin?: boolean }
 }
 
 type MsgType = string | Buffer | ArrayBuffer | Buffer[]
 
 export declare interface WebSocketTransport extends DsModule_Emitter<any, MsgType> {
-    on(event: 'retryTimesExceeded', handler: (totalRetries: number) => void): this
-    emit(event: 'retryTimesExceeded', totalRetries: number): boolean
-    removeListener(event: 'retryTimesExceeded', handler: (totalRetries: number) => void): this
+    on(event: 'openRetryTimesExceeded', handler: (totalRetries: number) => void): this
+    emit(event: 'openRetryTimesExceeded', totalRetries: number): boolean
+    removeListener(event: 'openRetryTimesExceeded', handler: (totalRetries: number) => void): this
 
     on(event: 'openTimeoutExceeded', handler: (timeElapsed: number) => void): this
     emit(event: 'openTimeoutExceeded', timeElapsed: number): boolean
@@ -46,7 +99,9 @@ export declare interface WebSocketTransport extends DsModule_Emitter<any, MsgTyp
 export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
     private opened = false
     private closed = false
-    private wsPromise: Promise<{ ws?: WebSocket; error?: Error }> = null as any
+    private openSocket: WebSocket
+    private wsPromise: Promise<{ ws?: WebSocket; error?: WebSocketTransportError }> = null as any
+
     constructor(sources?: IDsModule<any, MsgType>[], private options: WebSocketTransportOptions = {}) {
         super(sources)
         this.connectWs()
@@ -58,10 +113,10 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
      */
     public open(address: string) {
         if (this.opened) {
-            throw new Error('WebSocketTransport was already opened')
+            throw new Error('WebSocketTransport already opened')
         }
         if (this.closed) {
-            throw new Error('WebSocketTransport was closed')
+            throw new WebSocketTransportError('closed')
         }
         this.opened = true
         this.options.address = address
@@ -74,15 +129,15 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
             this.removeListener('close', this.previousCloseListener)
         }
         if (this.closed) {
-            this.wsPromise = Promise.resolve({ error: new Error('WebSocketTransport was closed') })
+            this.wsPromise = Promise.resolve({ error: new WebSocketTransportError('closed') })
             return
         }
-        this.wsPromise = new Promise(async resolve => {
+        this.wsPromise = new Promise(async (resolve) => {
             if (this.options.address) {
                 this.opened = true
             } else {
                 // Address wasn't provided, so we must wait for the open() call to receive the addresss.
-                await new Promise<void>(_resolve => {
+                await new Promise<void>((_resolve) => {
                     this.onAddressProvided = _resolve
                 })
             }
@@ -95,7 +150,7 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                     didTimeout = true
                     this.emit('openTimeoutExceeded', this.options.openTimeout)
                     resolve({
-                        error: new Error(`WebSocketTransport: Unable to open connection. Timed out after ${this.options.openTimeout}ms`)
+                        error: new WebSocketTransportError('openTimeoutExceeded')
                     })
                 }, this.options.openTimeout)
             }
@@ -106,9 +161,8 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                     return
                 }
                 if (this.options.openRetryTimes && this.options.openRetryTimes <= retryTimes) {
-                    let err = `WebSocketTransport: Unable to open connection after ${retryTimes} retries.`
-                    this.emit('retryTimesExceeded', retryTimes)
-                    resolve({ error: new Error(err) })
+                    this.emit('openRetryTimesExceeded', retryTimes)
+                    resolve({ error: new WebSocketTransportError('openRetryTimesExceeded') })
                     return
                 }
                 try {
@@ -116,9 +170,9 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                     break
                 } catch (event) {
                     this.emit('openFailed', ++retryTimes, event)
-                    await new Promise(_resolve => setTimeout(_resolve, 500))
+                    await new Promise((_resolve) => setTimeout(_resolve, 500))
                     if (this.closed) {
-                        resolve({ error: new Error('WebSocketTransport was closed') })
+                        resolve({ error: new WebSocketTransportError('closed') })
                         return
                     }
                 }
@@ -131,23 +185,25 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
             clearTimeout(timer)
 
             if (this.closed) {
-                resolve({ error: new Error('WebSocketTransport was closed') })
+                resolve({ error: new WebSocketTransportError('closed') })
                 return
             }
 
-            ws.onerror = ev => {
+            ws.onerror = (ev) => {
                 this.emit('ws_error', ev as any)
             }
-            ws.onclose = ev => {
+            ws.onclose = (ev) => {
+                delete this.openSocket
                 this.emit('ws_closed', ev as any)
                 this.connectWs()
             }
-            ws.onmessage = ev => {
+            ws.onmessage = (ev) => {
                 this.send(ev.data)
             }
 
             this.emit('ws_open')
 
+            this.openSocket = ws
             resolve({ ws })
         })
     }
@@ -164,12 +220,12 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                 clearTimeout(timer)
                 resolve(ws)
             }
-            ws.onerror = ev => {
+            ws.onerror = (ev) => {
                 clearTimeout(timer)
                 this.removeListener('close', closeListener)
                 reject(ev)
             }
-            ws.onclose = ev => {
+            ws.onclose = (ev) => {
                 clearTimeout(timer)
                 this.removeListener('close', closeListener)
                 reject(ev)
@@ -182,15 +238,43 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
             }
         })
     }
-    async receive(message: MsgType) {
-        let ws = await this.wsPromise
-        if (ws.error) {
-            throw ws.error
-        }
-        if (ws.ws.readyState !== ws.ws.OPEN) {
-            return this.receive(message)
-        }
-        ws.ws.send(message, this.options.wsSendOptions || {})
+    receive(message: MsgType) {
+        return new Promise<void>(async (resolve, reject) => {
+            if (typeof this.options.wsOpenTimeout === 'number') {
+                if (this.options.wsOpenTimeout === 0) {
+                    if (!this.openSocket || this.openSocket.readyState !== this.openSocket.OPEN) {
+                        reject(new WebSocketTransportError('sendMessageTimeoutExceeded'))
+                    }
+                    this.openSocket.send(message, this.options.wsSendOptions || {})
+                    resolve()
+                    return
+                }
+
+                var didTimeout = false
+                var timer = setTimeout(() => {
+                    didTimeout = true
+                    reject(new WebSocketTransportError('sendMessageTimeoutExceeded'))
+                }, this.options.wsOpenTimeout)
+            }
+
+            while (true) {
+                const ws = await this.wsPromise
+                if (didTimeout) {
+                    return
+                }
+                if (ws.error) {
+                    clearTimeout(timer)
+                    reject(ws.error)
+                    return
+                }
+                if (ws.ws.readyState === ws.ws.OPEN) {
+                    clearTimeout(timer)
+                    ws.ws.send(message, this.options.wsSendOptions || {})
+                    resolve()
+                    return
+                }
+            }
+        })
     }
     close() {
         if (this.closed) {
