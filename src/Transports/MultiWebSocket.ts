@@ -1,21 +1,20 @@
-import WebSocket = require('ws')
+import * as WebSocket from 'ws'
 import { DsModule_Emitter } from '../Core'
 import { TargetedMessage, SourcedMessage, TargetNotFoundError } from '../Utilities/Targets'
 import { WebSocketServer, WebSocketServerOptions } from './WebSocketServer'
 import { WebSocketTransportOptions, WebSocketTransport } from './WebSocket'
 
-type InputType<TrgtType> = TargetedMessage<string | Buffer | ArrayBuffer | Buffer[], TrgtType>
-type OutputType<TrgtType> = SourcedMessage<string | Buffer | ArrayBuffer | Buffer[], TrgtType>
+type InputType = TargetedMessage<string | Buffer | ArrayBuffer | Buffer[], string>
+type OutputType = SourcedMessage<string | Buffer | ArrayBuffer | Buffer[], string>
 
-export declare interface MultiWebSocketTransport<TrgtType = unknown>
-    extends DsModule_Emitter<InputType<TrgtType>, OutputType<TrgtType>> {
-    on(event: 'connection', handler: (target: TrgtType) => void): this
-    emit(event: 'connection', target: TrgtType): boolean
-    removeListener(event: 'connection', handler: (target: TrgtType) => void): this
+export declare interface MultiWebSocketTransport extends DsModule_Emitter<InputType, OutputType> {
+    on(event: 'connection', handler: (target: string, socket: WebSocket | WebSocketTransport) => void): this
+    emit(event: 'connection', target: string, socket: WebSocket | WebSocketTransport): boolean
+    removeListener(event: 'connection', handler: (target: string, socket: WebSocket | WebSocketTransport) => void): this
 
-    on(event: 'disconnect', handler: (target: TrgtType) => void): this
-    emit(event: 'disconnect', target: TrgtType): boolean
-    removeListener(event: 'disconnect', handler: (target: TrgtType) => void): this
+    on(event: 'disconnect', handler: (target: string) => void): this
+    emit(event: 'disconnect', target: string): boolean
+    removeListener(event: 'disconnect', handler: (target: string) => void): this
 
     on(event: 'close', handler: () => void): this
     emit(event: 'close'): boolean
@@ -23,39 +22,34 @@ export declare interface MultiWebSocketTransport<TrgtType = unknown>
 }
 
 /**
- * Combines multiple WebSocket clients and WebSocket server into a single transport. This transport will figure out
- * over which WebSocket connection to send a message.
+ * Combines multiple WebSocket clients and WebSocket server into a single transport. The transport will figure out over which socket to send a message.
  *
- * Uses authentication in both directions. When a client connects to a server it will send a connectRequest. If the server approves it
- * the server will send back a connectRequest to the client. If the client also approves it, the connection is established.
+ * When a WebSocket client is opened, the first message sent to the server is an identification. This lets the server know the ID of the client,
+ * so that it can properly route the correct messages to the correct clients.
  */
-export class MultiWebSocketTransport<TrgtType = unknown> extends DsModule_Emitter<InputType<TrgtType>, OutputType<TrgtType>> {
-    private servers: { server: WebSocketServer; targets: Map<WebSocket, TrgtType>; _targets: Map<TrgtType, WebSocket> }[] = []
+export class MultiWebSocketTransport extends DsModule_Emitter<InputType, OutputType> {
+    private servers: { server: WebSocketServer; targets: Map<string, WebSocket> }[] = []
 
-    private clientTargets = new Map<WebSocketTransport, TrgtType>()
-    private _clientTargets = new Map<TrgtType, WebSocketTransport>()
+    private clientTargets = new Map<string, WebSocketTransport>()
 
     /**
      * Disconnect from a certain target.
      */
-    disconnectFrom(target: TrgtType) {
-        let clientTarget = this._clientTargets.get(target)
+    disconnectFrom(target: string) {
+        const clientTarget = this.clientTargets.get(target)
         if (clientTarget) {
             clientTarget.close()
-            this._clientTargets.delete(target)
-            this.clientTargets.delete(clientTarget)
+            this.clientTargets.delete(target)
             this.emit('disconnect', target)
             return
         }
 
         for (let server of this.servers) {
-            let serverTarget = server._targets.get(target)
+            const serverTarget = server.targets.get(target)
             if (serverTarget) {
-                serverTarget.send('2')
-                serverTarget.close()
-                server._targets.delete(target)
-                server.targets.delete(serverTarget)
+                server.targets.delete(target)
                 this.emit('disconnect', target)
+                serverTarget.close()
                 return
             }
         }
@@ -66,212 +60,114 @@ export class MultiWebSocketTransport<TrgtType = unknown> extends DsModule_Emitte
     /**
      * Opens up a WebSocket server.
      *
-     * When a new client is connected, the client will send a connectRequest message. The contents of this message will be passed into
-     * the onConnectRequest callback. The callback must return both a target ID and a connectRequest item to send back to the client.
+     * When a new client is connected, the client will send their target identifier, which allows us to send messages to the correct client.
      * @param serverOptions Options to pass to the WebSocket server.
-     * @param onConnectRequest Authenticates, and returns a connection request which we should send back to the client.
      */
-    openServer(
-        serverOptions: WebSocketServerOptions,
-        onConnectRequest: (
-            req: any
-        ) => Promise<{ target: TrgtType; returnConnectRequest: any }> | { target: TrgtType; returnConnectRequest: any }
-    ) {
-        let server = new WebSocketServer([], serverOptions)
-        let targets = new Map<WebSocket, TrgtType>()
-        let _targets = new Map<TrgtType, WebSocket>()
-        let awaitingConnects = new Map<WebSocket, TrgtType>()
-        server.on('connection', ws => {
+    openServer(serverOptions: WebSocketServerOptions) {
+        const server = new WebSocketServer([], serverOptions)
+        const targets = new Map<string, WebSocket>()
+
+        const isFirstMessage = new Set<WebSocket>()
+
+        server.on('connection', (ws) => {
+            isFirstMessage.add(ws)
+            let target: string = null
             ws.on('close', () => {
-                let trgt = targets.get(ws)
-                if (trgt) {
-                    this.disconnectFrom(trgt)
+                ws.removeListener('message', messageListener)
+                if (target === null) {
+                    return
+                }
+                if (targets.delete(target)) {
+                    this.emit('disconnect', target)
                 }
             })
-        })
-        server.pipe(message => {
-            let msg = message.message.toString()
-            let code = msg.substr(0, 1)
-            var actualMessage = msg.substr(1)
-            // 0 = identify, 1 = message, 2 = close, 3 = disallowed connect request, 4 = connection success
-            if (code === '0') {
-                if (targets.has(message.source)) {
-                    // Already identified..
-                    return
-                }
-
-                try {
-                    var accessReq = JSON.parse(actualMessage)
-                } catch {
-                    // Invalid message
-                    return
-                }
-
-                Promise.resolve(onConnectRequest(accessReq)).then(
-                    res => {
-                        // Check if we already have that target, in that case send not allowed
-                        if (this.hasTarget(res.target)) {
-                            server.receive({ target: message.source, message: '3' })
-                            return
-                        }
-                        awaitingConnects.set(message.source, res.target)
-                        // Send back our accessRequest
-                        server.receive({ target: message.source, message: '0' + JSON.stringify(res.returnConnectRequest) })
-                    },
-                    () => {
-                        // Not allowed
-                        server.receive({ target: message.source, message: '3' })
+            const messageListener = (msg: WebSocket.Data) => {
+                if (target === null) {
+                    // This is the first message. This should be an identification.
+                    target = msg.toString()
+                    if (this.hasTarget(target)) {
+                        this.disconnectFrom(target)
                     }
-                )
-            } else if (code === '1') {
-                let currentTarget = targets.get(message.source)
-                if (!currentTarget) {
-                    return
+                    targets.set(target, ws)
+                    this.emit('connection', target, ws)
+                } else {
+                    this.send({ source: target, message: msg })
                 }
-                // Message received!
-                this.send({ source: currentTarget, message: actualMessage })
-            } else if (code === '4') {
-                let trgt = awaitingConnects.get(message.source)
-                if (!trgt) {
-                    return
-                }
-                // Connection success both ways
-                targets.set(message.source, trgt)
-                _targets.set(trgt, message.source)
-                this.emit('connection', trgt)
             }
+            ws.on('message', messageListener)
         })
-        this.servers.push({ server, _targets, targets })
+        server.on('close', () => {
+            Array.from(targets.keys()).forEach((target) => {
+                targets.delete(target)
+                this.emit('disconnect', target)
+            })
+            this.servers = this.servers.filter((el) => el.server !== server)
+        })
+        this.servers.push({ server, targets })
+
         return server
     }
 
     /**
-     * Check if a target has been connected.
+     * Open a WebSocketTransport connecting to a server, and connect to the target.
+     * @param thisIsme Will send this to the server, which will use it as a target identifier for this replica.
+     * @param thisIsThem Target identifier for the server.
+     * @param options Options for the transport.
      */
-    hasTarget(target: TrgtType) {
+    openClient(thisIsMe: string, thisIsThem: string, options: WebSocketTransportOptions) {
+        let transport = new WebSocketTransport([], options)
+
+        transport.on('close', () => {
+            this.clientTargets.delete(thisIsThem)
+            this.emit('disconnect', thisIsThem)
+        })
+
+        transport.on('ws_open', () => {
+            transport.receive(thisIsMe)
+        })
+
+        transport.pipe((message) => {
+            this.send({ source: thisIsThem, message })
+        })
+
+        this.clientTargets.set(thisIsThem, transport)
+        this.emit('connection', thisIsThem, transport)
+
+        return transport
+    }
+
+    /**
+     * Get a list of all targets, either clients that we opened, or targets that connected to one of our servers.
+     */
+    getTargets() {
+        const actualTargets = Array.from(this.clientTargets.keys())
+        for (let server of this.servers) {
+            actualTargets.push(...server.targets.keys())
+        }
+        return actualTargets
+    }
+
+    /**
+     * Check if we either have opened a client for a target, or the target connected to one of our servers.
+     */
+    hasTarget(target: string) {
         return (
-            this._clientTargets.has(target) ||
-            this.servers.some(server => {
-                let t = server._targets.get(target)
+            this.clientTargets.has(target) ||
+            this.servers.some((server) => {
+                let t = server.targets.get(target)
                 return t && server.server.getTargets().includes(t)
             })
         )
     }
 
-    openClient(
-        options: WebSocketTransportOptions,
-        connectRequest: any,
-        onConnectRequest: (req: any) => Promise<TrgtType> | TrgtType
-    ) {
-        let transport = new WebSocketTransport([], options)
-
-        let didIdentify = false
-        let target: TrgtType
-
-        transport.on('close', () => {
-            if (didIdentify) {
-                let targetId = this.clientTargets.get(transport)
-                if (!targetId) {
-                    return
-                }
-                this.clientTargets.delete(transport)
-                this._clientTargets.delete(targetId)
-                this.emit('disconnect', target)
-            }
-        })
-
-        let closeListener = () => {
-            transport.close()
-        }
-        this.on('close', closeListener)
-
-        return {
-            promise: new Promise<TrgtType>((resolve, reject) => {
-                transport.pipe(message => {
-                    let msg = message.toString()
-                    let code = msg.substr(0, 1)
-                    let actualMessage = msg.substr(1)
-
-                    // 0 = identify, 1 = message, 2 = close, 3 = disallowed connect request
-                    if (code === '0') {
-                        if (didIdentify) {
-                            // Already identified
-                            return
-                        }
-
-                        try {
-                            var accessReq = JSON.parse(actualMessage)
-                        } catch {
-                            // Invalid message
-                            return
-                        }
-
-                        Promise.resolve(onConnectRequest(accessReq)).then(
-                            res => {
-                                target = res
-                                transport.receive('4')
-                                this.clientTargets.set(transport, target)
-                                this._clientTargets.set(target, transport)
-                                didIdentify = true
-                                this.removeListener('close', closeListener)
-                                this.emit('connection', target)
-                                resolve(target)
-                            },
-                            () => {
-                                // Not allowed
-                                transport.receive('3')
-                            }
-                        )
-                    } else if (code === '1') {
-                        if (!didIdentify) {
-                            return
-                        }
-                        this.send({ source: target, message: actualMessage })
-                    } else if (code === '2') {
-                        if (!didIdentify) {
-                            return
-                        }
-                        transport.close()
-                        this._clientTargets.delete(target)
-                        this.clientTargets.delete(transport)
-                        this.emit('disconnect', target)
-                    } else if (code === '3') {
-                        if (didIdentify) {
-                            return
-                        }
-                        reject(new Error('MultiWebSocketTransport: Could not connect client. Connect request denied.'))
-                    }
-                })
-                transport.receive('0' + JSON.stringify(connectRequest))
-            }),
-            transport
-        }
-    }
-
-    /**
-     * Get a list of all connected targets.
-     */
-    getTargets() {
-        let actualTargets = Array.from(this._clientTargets.keys())
-        for (let server of this.servers) {
-            let connectedWebSockets = server.server.getTargets()
-            for (let [key, value] of server.targets) {
-                if (connectedWebSockets.includes(key)) {
-                    actualTargets.push(value)
-                }
-            }
-        }
-        return actualTargets
-    }
-
-    receive(message: InputType<TrgtType>) {
-        if (this._clientTargets.has(message.target)) {
-            let client = this._clientTargets.get(message.target)!
-            client.receive('1' + message.message)
+    receive(message: InputType) {
+        const clientTarget = this.clientTargets.get(message.target)
+        if (clientTarget) {
+            clientTarget.receive(message.message)
             return
         }
         for (let server of this.servers) {
-            let t = server._targets.get(message.target)
+            let t = server.targets.get(message.target)
             if (t) {
                 server.server.receive({ target: t, message: '1' + message.message })
                 return
@@ -281,10 +177,10 @@ export class MultiWebSocketTransport<TrgtType = unknown> extends DsModule_Emitte
     }
 
     /**
-     * Close the server and all clients.
+     * Close all servers and clients.
      */
     close() {
-        this.getTargets().forEach(trgt => {
+        this.getTargets().forEach((trgt) => {
             this.disconnectFrom(trgt)
         })
         for (let server of this.servers) {

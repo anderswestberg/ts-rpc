@@ -201,9 +201,9 @@ export class WebSocketTransport extends DsModule_Emitter<MsgType, MsgType> {
                 this.send(ev.data)
             }
 
+            this.openSocket = ws
             this.emit('ws_open')
 
-            this.openSocket = ws
             resolve({ ws })
         })
     }
