@@ -75,21 +75,21 @@ export declare interface WebSocketTransport extends DsModule_Emitter<any, MsgTyp
     emit(event: 'openTimeoutExceeded', timeElapsed: number): boolean
     removeListener(event: 'openTimeoutExceeded', handler: (timeElapsed: number) => void): this
 
-    on(event: 'openFailed', handler: (attemptNumber: number, event: CloseEvent | ErrorEvent) => void): this
-    emit(event: 'openFailed', attemptNumber: number, ws_event: CloseEvent | ErrorEvent): boolean
-    removeListener(event: 'openFailed', handler: (attemptNumber: number, ws_event: CloseEvent | ErrorEvent) => void): this
+    on(event: 'openFailed', handler: (attemptNumber: number, event: WebSocket.CloseEvent | WebSocket.ErrorEvent) => void): this
+    emit(event: 'openFailed', attemptNumber: number, ws_event: WebSocket.CloseEvent | WebSocket.ErrorEvent): boolean
+    removeListener(event: 'openFailed', handler: (attemptNumber: number, ws_event: WebSocket.CloseEvent | WebSocket.ErrorEvent) => void): this
 
     on(event: 'ws_open', handler: () => void): this
     emit(event: 'ws_open'): boolean
     removeListener(event: 'ws_open', handler: () => void): this
 
-    on(event: 'ws_closed', handler: (evt: CloseEvent) => void): this
-    emit(event: 'ws_closed', evt: CloseEvent): boolean
-    removeListener(event: 'ws_closed', handler: (evt: CloseEvent) => void): this
+    on(event: 'ws_closed', handler: (evt: WebSocket.CloseEvent) => void): this
+    emit(event: 'ws_closed', evt: WebSocket.CloseEvent): boolean
+    removeListener(event: 'ws_closed', handler: (evt: WebSocket.CloseEvent) => void): this
 
-    on(event: 'ws_error', handler: (evt: ErrorEvent) => void): this
-    emit(event: 'ws_error', evt: ErrorEvent): boolean
-    removeListener(event: 'ws_error', handler: (evt: ErrorEvent) => void): this
+    on(event: 'ws_error', handler: (evt: WebSocket.ErrorEvent) => void): this
+    emit(event: 'ws_error', evt: WebSocket.ErrorEvent): boolean
+    removeListener(event: 'ws_error', handler: (evt: WebSocket.ErrorEvent) => void): this
 
     on(event: 'close', handler: () => void): this
     emit(event: 'close'): boolean
