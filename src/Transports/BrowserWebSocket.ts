@@ -230,8 +230,8 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
     }
     receive(message: MsgType) {
         return new Promise<void>(async (resolve, reject) => {
-            if (typeof this.options.wsOpenTimeout === 'number') {
-                if (this.options.wsOpenTimeout === 0) {
+            if (typeof this.options.sendMessageTimeout === 'number') {
+                if (this.options.sendMessageTimeout === 0) {
                     if (!this.openSocket || this.openSocket.readyState !== this.openSocket.OPEN) {
                         reject(new BrowserWebSocketTransportError('sendMessageTimeoutExceeded'))
                     }
@@ -244,7 +244,7 @@ export class BrowserWebSocketTransport extends DsModule_Emitter<MsgType, MsgType
                 var timer = setTimeout(() => {
                     didTimeout = true
                     reject(new BrowserWebSocketTransportError('sendMessageTimeoutExceeded'))
-                }, this.options.wsOpenTimeout)
+                }, this.options.sendMessageTimeout)
             }
 
             while (true) {
