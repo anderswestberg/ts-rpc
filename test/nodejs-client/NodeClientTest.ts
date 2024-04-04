@@ -1,4 +1,5 @@
 import { SocketIoTransport, JsonParser, RpcClient, JsonStringifier, IManageRpc } from '../../src/index'
+import { ITestRpc } from '../nodejs-server/ITestRpc'
 
 const main = async () => {
 
@@ -18,13 +19,23 @@ const main = async () => {
     stringifier.pipe(transport)
 
     // Create a JavaScript proxy object which allows us to call the RPC functions. The service name should match the exposed object on the server ("MyRpc").
+
+    let client2 = rpcClient.api('testRpc') as ITestRpc
+    client2.on('hejsan', (...args: any[]) => {
+        console.log('Event hejsan: ' + args)
+    })
+    client2.on('svejsan', (...args: any[]) => {
+        console.log('Event svejsan: ' + args)
+    })
+
     let client = rpcClient.api('MyRpc')
-    let client2 = rpcClient.api('testRpc')
+
     let manageRpc = rpcClient.api('manageRpc')as IManageRpc
-    let newInstance = await manageRpc.createRpcInstance('TestRpc', 77) as any
-    let newInstanceRpc = rpcClient.api(newInstance)
+    let newInstance = await manageRpc.createRpcInstance('TestRpc', 77)
+    let newInstanceRpc = rpcClient.api(newInstance) as ITestRpc
     let sum = await newInstanceRpc.add(5, 6)
 
+    let remote = await manageRpc.createRpcInstance('TestRpc', 77)
     for (;;) {
         // Should output Hello World!
         let response = await client.Hello('World!')

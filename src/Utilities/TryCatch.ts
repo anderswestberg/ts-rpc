@@ -11,7 +11,7 @@ export class TryCatch<MsgType = any> extends DsModule_Emitter<MsgType, MsgType> 
         super(sources)
     }
     receive(message: MsgType) {
-        let p = this.send(message)
+        let p = this.send(message).then()
         p.catch(e => this.emit('caught', message, e))
     }
 }

@@ -1,12 +1,18 @@
 import { SocketIoServer, Converter, RpcServer, TryCatch } from '../../src/index'
 import express from 'express'
 import { createServer } from 'http'
+import { ITestRpc } from './ITestRpc'
+import EventEmitter from 'events'
 
-export class TestRpc {
+export class TestRpc extends EventEmitter implements ITestRpc {
     constructor(public base: number) {        
+        super()
     }
-    add(a: number, b: number) {
+    async add(a: number, b: number) {
         return this.base + a + b
+    }
+    triggerEvent() {
+        this.emit('hejsan', 1, 2, 3, 4)
     }
 }
 
@@ -50,6 +56,8 @@ const main = async () => {
 
     for (;;) {
         await new Promise(res => setTimeout(res, 5000))
+        testRpc.emit('hejsan',  1, 2, 5)
+        testRpc.emit('svejsan',  Math.PI)
     }
 }
 

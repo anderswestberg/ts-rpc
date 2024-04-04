@@ -1,4 +1,5 @@
 import { DsModule_Emitter } from '../Core'
+import { isEventFunction } from './Rpc'
 import { RpcResponse, RpcRequestCallInstanceMethod, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
 import { EventEmitter } from 'events'
 
@@ -15,14 +16,15 @@ export class RpcError extends Error {
 }
 
 export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
-    on(event: 'event', handler: (_event: string, params: any[]) => void): this
-    emit(event: 'event', _event: string, params: any[]): boolean
-    removeListener(event: 'event', handler: (_event: string, params: any[]) => void): this
+    on(event: string, handler: (_event: string, params: any[]) => void): this
+    emit(event: string, params: any[]): boolean
+    removeListener(event: string, handler: (params: any[]) => void): this
 }
 
 function isEventMessage(message: RpcResponse): message is RpcEventMessage {
     return Boolean((message as any).event)
 }
+
 function isErrorResponse(message: RpcResponse): message is RpcErrorResponse {
     return Boolean((message as any).error)
 }
@@ -36,7 +38,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
     receive(message: RpcResponse) {
         if (isEventMessage(message)) {
             this.eventEmitter.emit(message.event, ...message.params)
-            this.emit('event', message.event, message.params)
+            this.emit(message.event, message.params)
             return
         }
         const promise = this.responsePromiseMap.get(message.id)
@@ -87,27 +89,16 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
      * callback when the server sends an event. The eventEmitter-related functions are "on", "addListener", "once", "prependOnceListener", "off",
      * "removeListener", "emit", "removeListener", "removeAllListeners", "setMaxListeners", "getMaxListeners".
      */
-    public api(name: string, additionalParameter?: any, captureEventFunctions: boolean = true) {
+    public api(name: string, url?: string, additionalParameter?: any, captureEventFunctions: boolean = true) {
         return new Proxy({} as any, {
             get: (target, prop) => {
                 if (target[prop]) {
                     return target[prop]
-                } else if (
-                    captureEventFunctions &&
-                    (prop === 'on' ||
-                        prop === 'addListener' ||
-                        prop === 'prependListener' ||
-                        prop === 'once' ||
-                        prop === 'prependOnceListener' ||
-                        prop === 'off' ||
-                        prop === 'removeListener' ||
-                        prop === 'emit' ||
-                        prop === 'removeListener' ||
-                        prop === 'removeAllListeners' ||
-                        prop === 'setMaxListeners' ||
-                        prop === 'getMaxListeners')
-                ) {
-                    target[prop] = (...args: any[]) => (this.eventEmitter[prop] as any)(...args)
+                } else if (captureEventFunctions && typeof(prop) === 'string'  && isEventFunction(prop)) {
+                    target[prop] = (...args: any[]) => {
+                        (this.eventEmitter[prop] as any)(...args)
+                        this.call(name, prop, additionalParameter, ...args)
+                    }
                 } else {
                     target[prop] = (...args: any[]) => this.call(name, prop as any, additionalParameter, ...args)
                 }

@@ -3,5 +3,20 @@ export interface IManageRpc {
     exposeClass<T>(constructor: new (...args: any[]) => T, aliasName?: string): void
     exposeObject(obj: any, name: string): void
     expose(methodName: string, method: Function): void
-    createRpcInstance(className: string, ...args: any[]): string | undefined
+    createRpcInstance(className: string, ...args: any[]): Promise<string | undefined>
+    remoteClientConnection(url: string, name: string): Promise<string>
 }
+
+export const isEventFunction = (prop: string) => 
+    (prop === 'on' ||
+        prop === 'addListener' ||
+        prop === 'prependListener' ||
+        prop === 'once' ||
+        prop === 'prependOnceListener' ||
+        prop === 'off' ||
+        prop === 'removeListener' ||
+        prop === 'emit' ||
+        prop === 'removeListener' ||
+        prop === 'removeAllListeners' ||
+        prop === 'setMaxListeners' ||
+        prop === 'getMaxListeners')
