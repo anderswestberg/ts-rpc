@@ -1,11 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
+    "target": "es2022",
+    "module": "CommonJS",
     "declaration": true,
-    "outDir": "dist",
+    "outDir": "./dist",
     "sourceMap": true,
-    "rootDir": "./src",
-    "inlineSources": true
-  }
+    "inlineSources": true,
+    "esModuleInterop": true
+  },
+  "exclude": ["./dist", "./web-client"]
 }

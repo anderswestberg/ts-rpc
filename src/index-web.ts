@@ -1,7 +1,9 @@
 export * from './Core'
 
 export * from './Transports/BrowserWebSocket'
+export * from './Transports/SocketIo'
 
+export * from './RPC/Rpc'
 export * from './RPC/RpcClient'
 export * from './RPC/RpcServer'
 

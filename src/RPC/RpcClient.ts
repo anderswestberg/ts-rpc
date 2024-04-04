@@ -1,10 +1,10 @@
 import { DsModule_Emitter } from '../Core'
-import { RpcResponse, RpcRequest, RpcEventMessage, RpcErrorResponse } from './RpcServer'
+import { RpcResponse, RpcRequestCallInstanceMethod, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
 import { EventEmitter } from 'events'
 
 export class RpcError extends Error {
-    error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }
-    constructor(error: { code: 'MethodNotFound' } | { code: 'Exception'; exception: any }) {
+    error: RpcErrorItem
+    constructor(error: RpcErrorItem) {
         if (error.code === 'MethodNotFound') {
             super('RpcClient: The called method was not found on the server.')
         } else {
@@ -14,7 +14,7 @@ export class RpcError extends Error {
     }
 }
 
-export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
+export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
     on(event: 'event', handler: (_event: string, params: any[]) => void): this
     emit(event: 'event', _event: string, params: any[]): boolean
     removeListener(event: 'event', handler: (_event: string, params: any[]) => void): this
@@ -27,7 +27,7 @@ function isErrorResponse(message: RpcResponse): message is RpcErrorResponse {
     return Boolean((message as any).error)
 }
 
-export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
+export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
     private messageIdCounter = 1
     private responsePromiseMap = new Map<number, { resolve: Function; reject: Function }>()
 
@@ -57,10 +57,12 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
      * @param additionalParameter The (optional) additionalParameter to include. See the JsonRpc class for more details.
      * @param params
      */
-    public call(method: string, additionalParameter: any, ...params: string[]): Promise<any> {
+    public call(instanceName: string, method: string, additionalParameter: any, ...params: string[]): Promise<any> {
         const id = this.messageIdCounter++
-        const message: RpcRequest = {
+        const message: RpcRequests = {
             id,
+            type: RequestMessageType.CallInstanceMethod,
+            instanceName,
             method: method as any,
             params,
             additionalParameter
@@ -85,7 +87,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
      * callback when the server sends an event. The eventEmitter-related functions are "on", "addListener", "once", "prependOnceListener", "off",
      * "removeListener", "emit", "removeListener", "removeAllListeners", "setMaxListeners", "getMaxListeners".
      */
-    public api(additionalParameter?: any, captureEventFunctions: boolean = true) {
+    public api(name: string, additionalParameter?: any, captureEventFunctions: boolean = true) {
         return new Proxy({} as any, {
             get: (target, prop) => {
                 if (target[prop]) {
@@ -107,7 +109,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequest> {
                 ) {
                     target[prop] = (...args: any[]) => (this.eventEmitter[prop] as any)(...args)
                 } else {
-                    target[prop] = (...args: any[]) => this.call(prop as any, additionalParameter, ...args)
+                    target[prop] = (...args: any[]) => this.call(name, prop as any, additionalParameter, ...args)
                 }
                 return target[prop]
             }
