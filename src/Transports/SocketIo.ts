@@ -6,6 +6,7 @@ type MsgType = string | Buffer | ArrayBuffer | Buffer[]
 
 export class SocketIoTransport extends DsModule_Emitter<MsgType, MsgType> {
     private socket: SocketIoClient.Socket
+    connected = false
 
     constructor(sources?: IDsModule<any, MsgType>[]) {
         super(sources)
@@ -14,6 +15,12 @@ export class SocketIoTransport extends DsModule_Emitter<MsgType, MsgType> {
         this.socket = SocketIoClient.io(address)
         this.socket.on('message', (ev) => {
             this.send(ev.data)
+        })
+        this.socket.on('connect', () => {
+            this.connected = true
+        })
+        this.socket.on('disconnect', () => {
+            this.connected = false
         })
     }
     receive(message: MsgType) {

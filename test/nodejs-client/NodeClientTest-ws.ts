@@ -17,7 +17,7 @@ const main = async () => {
     stringifier.pipe(transport)
 
     // Create a JavaScript proxy object which allows us to call the RPC functions. The service name should match the exposed object on the server ("MyRpc").
-    let client = rpcClient.api('MyRpc')
+    let client = await rpcClient.api('MyRpc')
 
     for (;;) {
         // Should output Hello World!

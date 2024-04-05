@@ -4,11 +4,14 @@ import { createServer } from 'http'
 import { ITestRpc } from './ITestRpc'
 import EventEmitter from 'events'
 
+const port = process.argv[2] || 3000
+
 export class TestRpc extends EventEmitter implements ITestRpc {
-    constructor(public base: number) {        
+    constructor(public base: number = 0) {        
         super()
     }
     async add(a: number, b: number) {
+        console.log(`TestRpc.add ${a} ${b} base: ${this.base}`)
         return this.base + a + b
     }
     triggerEvent() {
@@ -50,8 +53,8 @@ const main = async () => {
     rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
     rpcServer.manageRpc.exposeClass(TestRpc)
 
-    server.listen(3000, () => {
-        console.log('Server listening on port 3000');
+    server.listen(port, () => {
+        console.log(`Server listening on port ${port}`);
     });
 
     for (;;) {

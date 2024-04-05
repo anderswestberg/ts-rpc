@@ -1,4 +1,5 @@
 import { DsModule_Emitter } from '../Core'
+import { RpcClientConnection } from '../RpcClientConnection'
 import { isEventFunction } from './Rpc'
 import { RpcResponse, RpcRequestCallInstanceMethod, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
 import { EventEmitter } from 'events'
@@ -59,7 +60,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
      * @param additionalParameter The (optional) additionalParameter to include. See the JsonRpc class for more details.
      * @param params
      */
-    public call(instanceName: string, method: string, additionalParameter: any, ...params: string[]): Promise<any> {
+    public call(instanceName: string, method: string, ...params: string[]): Promise<any> {
         const id = this.messageIdCounter++
         const message: RpcRequests = {
             id,
@@ -67,7 +68,6 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
             instanceName,
             method: method as any,
             params,
-            additionalParameter
         }
         return new Promise(async (resolve, reject) => {
             this.responsePromiseMap.set(id, { resolve, reject })
@@ -82,25 +82,21 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
 
     /**
      * Create an API object - a sort of wrapper for calling methods and listening for events.
-     * @param additionalParameter If provided, this value will be provided as the "additionalParameter" for all RPC requests made by this API object.
-     * See the JsonRpc class for more details about this parameter.
-     * @param captureEventFunctions Default: true. If true, all eventEmitter-related functions will not call the method on the RPC server, but instead
-     * react appropriately when the RPC server emits an event. For example, if the "on" function is called, the client will call the provided
-     * callback when the server sends an event. The eventEmitter-related functions are "on", "addListener", "once", "prependOnceListener", "off",
-     * "removeListener", "emit", "removeListener", "removeAllListeners", "setMaxListeners", "getMaxListeners".
+     * @param name Name of an existing instance on the server instance. If in the form "name: Class" an instance of type Class will be created 
+     * on the server if it does not already exist.
      */
-    public api(name: string, url?: string, additionalParameter?: any, captureEventFunctions: boolean = true) {
+    public api(name: string) {
         return new Proxy({} as any, {
             get: (target, prop) => {
                 if (target[prop]) {
                     return target[prop]
-                } else if (captureEventFunctions && typeof(prop) === 'string'  && isEventFunction(prop)) {
+                } else if (typeof (prop) === 'string' && isEventFunction(prop)) {
                     target[prop] = (...args: any[]) => {
                         (this.eventEmitter[prop] as any)(...args)
-                        this.call(name, prop, additionalParameter, ...args)
+                        this.call(name, prop, ...args)
                     }
                 } else {
-                    target[prop] = (...args: any[]) => this.call(name, prop as any, additionalParameter, ...args)
+                    target[prop] = (...args: any[]) => this.call(name, prop as any, ...args)
                 }
                 return target[prop]
             }

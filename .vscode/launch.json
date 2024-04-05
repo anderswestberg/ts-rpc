@@ -5,15 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Test Client",
-            "program": "${workspaceFolder}/dist/test/nodejs-client/NodeClientTest.js",
-            "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "node"
-        },
-        {
             "type": "node",
             "request": "launch",
             "name": "Test Server",
@@ -24,7 +15,33 @@
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
-            ]
+            ],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Test Client",
+            "program": "${workspaceFolder}/dist/test/nodejs-client/NodeClientTest.js",
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "node",
+            "console": "externalTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Test Server 2",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/dist/test/nodejs-server/NodeServerTest.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "args": ["3001"],
+            "console": "externalTerminal"
         }
     ]
 }

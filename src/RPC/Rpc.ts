@@ -1,10 +1,13 @@
+import { RpcClientConnection } from "../RpcClientConnection"
+
 export interface IManageRpc {
     exposeClassInstance(instance: any, name: string, prototypeSteps?: number): void
     exposeClass<T>(constructor: new (...args: any[]) => T, aliasName?: string): void
     exposeObject(obj: any, name: string): void
     expose(methodName: string, method: Function): void
     createRpcInstance(className: string, ...args: any[]): Promise<string | undefined>
-    remoteClientConnection(url: string, name: string): Promise<string>
+    getRemoteClientConnection(name: string, url: string): Promise<RpcClientConnection>
+    createProxyToRemote(name: string, url: string | string[], ...args: any[]): Promise<string>
 }
 
 export const isEventFunction = (prop: string) => 

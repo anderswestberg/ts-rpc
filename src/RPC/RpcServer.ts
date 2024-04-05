@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
 import { RpcClientConnection } from '../RpcClientConnection'
+import { RpcClient } from './RpcClient'
 
 export type RpcErrorCode = 'ClassNotFound' | 'MethodNotFound' | 'Exception'
 
@@ -72,7 +73,7 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
                     if (message.message.method === 'on' && inst instanceof EventEmitter) {
                         const eventProxy = new EventProxy<SrcType>(this, inst, message.message.params[0], message.source)
                         this.eventProxies.push(eventProxy)
-                        ;(inst as EventEmitter).on(message.message.params[0], eventProxy.on.bind(eventProxy))
+                            ; (inst as EventEmitter).on(message.message.params[0], eventProxy.on.bind(eventProxy))
                         this.send({ target: message.source, message: { id: message.message.id, result: 'oko' } })
                     } else {
                         this.send({
@@ -99,24 +100,13 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
                 if (message.source !== undefined) {
                     params[handler.length + 1] = message.source
                 }
-
+                let result
                 try {
-                    var result = await handler(...params)
+                    result = await handler(...params)
+                    this.send({ target: message.source, message: { id: message.message.id, result } })
                 } catch (e) {
-                    this.send({
-                        target: message.source,
-                        message: {
-                            id: message.message.id,
-                            error: {
-                                code: 'Exception',
-                                exception: e
-                            }
-                        }
-                    })
-                    return
+                    this.send({ target: message.source, message: { id: message.message.id, error: { code: 'Exception', exception: e } } })
                 }
-
-                this.send({ target: message.source, message: { id: message.message.id, result } })
                 break
             case RequestMessageType.SomeOtherMessage:
                 break
@@ -126,6 +116,16 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
     sendEvent(target: SrcType, event: string, params: any[]) {
         return this.send({ target, message: { event, params } })
     }
+}
+
+const parseDeclaration = (declaration: string) => {
+    let typeName = declaration
+    let instanceName = ''
+    if (declaration.indexOf(':') > 0) {
+        typeName = (declaration.split(':')[1]).trim()
+        instanceName = (declaration.split(':')[0]).trim()
+    }
+    return [instanceName, typeName]
 }
 
 export const createInstance = (className: string, ...args: any[]): any => {
@@ -147,6 +147,7 @@ export class ManageRpc implements IManageRpc {
     exposedClasses: { [className: string]: new (...args: any[]) => any } = {}
     createdInstances = new Map<string, object>()
     rpcClientConnections: { [url: string]: RpcClientConnection } = {}
+    remoteConnections: { [url: string]: any } = {}
     constructor() {
         this.exposeClassInstance(this, ManageRpc.name.charAt(0).toLowerCase() + ManageRpc.name.slice(1))
     }
@@ -201,27 +202,38 @@ export class ManageRpc implements IManageRpc {
         const map = this.getNameSpaceMethodMap(methodName)
         map.set(methodName, method)
     }
-    async createRpcInstance(className: string, ...args: any[]) {
+    async createRpcInstance(className: string, instanceName: string, ...args: any[]) {
         let result: string
         const con = this.exposedClasses[className]
         if (con) {
-            const guid = uuidv4()
+            const id = instanceName ? instanceName : uuidv4()
             const instance = new con(...args)
-            this.createdInstances[guid] = instance
-            this.exposeClassInstance(instance, guid)
-            result = guid
+            this.createdInstances[id] = instance
+            this.exposeClassInstance(instance, id)
+            result = id
         }
         return result
     }
-    async remoteClientConnection(url: string, name: string) {
-        let conn = this.rpcClientConnections[url]
-        if (!conn) {
-            conn = new RpcClientConnection(url)
-            this.rpcClientConnections[url] = conn
+    async getRemoteClientConnection(name: string, url: string) {
+        let result = this.rpcClientConnections[url]
+        if (!result) {
+            result = new RpcClientConnection(url)
+            await result.ready(5000)
+            this.rpcClientConnections[url] = result
         }
-        const api = conn.api(name)
-        const result = uuidv4()
-        this.exposeObject(api, result)
+        return result
+    }
+    async createProxyToRemote(name: string, url: string | string[], ...args: any[]) {
+        let result = ''
+        let remoteUrl = Array.isArray(url) ? url[0] : url
+        let nextUrls = Array.isArray(url) ? url.slice(1) : ''
+        let remoteConnection = await this.getRemoteClientConnection(name, remoteUrl)
+        if (!nextUrls) {
+            const [instanceName, typeName] = parseDeclaration(name)
+            result = await remoteConnection.manageRpc.createRpcInstance(typeName, instanceName, ...args)
+        } else {
+            result = await remoteConnection.manageRpc.createProxyToRemote(name, nextUrls, ...args)
+        }
         return result
     }
 }
