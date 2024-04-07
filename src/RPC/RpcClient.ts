@@ -1,7 +1,6 @@
 import { DsModule_Emitter, IDsModule } from '../Core'
-import { RpcClientConnection } from '../RpcClientConnection'
 import { isEventFunction } from './Rpc'
-import { RpcResponse, RpcRequestCallInstanceMethod, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
+import { RpcResponse, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
 import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -17,25 +16,24 @@ export class RpcError extends Error {
     }
 }
 
-export declare interface RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
-    on(event: string, handler: (_event: string, params: any[]) => void): this
-    emit(event: string, params: any[]): boolean
-    removeListener(event: string, handler: (params: any[]) => void): this
+export interface RpcClientEmitter extends DsModule_Emitter<RpcResponse, RpcRequests> {
+    on(event: string, handler: (_event: string, params: unknown[]) => void): this
+    emit(event: string, params: unknown[]): boolean
+    removeListener(event: string, handler: (params: unknown[]) => void): this
 }
 
 function isEventMessage(message: RpcResponse): message is RpcEventMessage {
-    return Boolean((message as any).event)
+    return Boolean(message['event'] !== undefined)
 }
 
 function isErrorResponse(message: RpcResponse): message is RpcErrorResponse {
-    return Boolean((message as any).error)
+    return Boolean(message['error'] !== undefined)
 }
 
-export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
-    private messageIdCounter = 1
-    private responsePromiseMap = new Map<number, { resolve: Function; reject: Function }>()
+export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> implements RpcClientEmitter {
+    private responsePromiseMap = new Map<string, { resolve: (result: unknown) => void; reject: (reason?: unknown) => void }>()
     private eventEmitter = new EventEmitter()
-    constructor(sources?: IDsModule<any, RpcResponse>[], public target?: string | string[]) {
+    constructor(sources?: IDsModule<unknown, RpcResponse>[], public target?: string | string[]) {
         super(sources)
     }
 
@@ -63,24 +61,22 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
      * @param additionalParameter The (optional) additionalParameter to include. See the JsonRpc class for more details.
      * @param params
      */
-    public call(instanceName: string, method: string, ...params: string[]): Promise<any> {
+    public call(instanceName: string, method: string, ...params: unknown[]): Promise<unknown> {
         const id = uuidv4()
         const message: RpcRequests = {
             id,
             type: RequestMessageType.CallInstanceMethod,
             instanceName,
-            method: method as any,
+            method,
             params,
         }
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             this.responsePromiseMap.set(id, { resolve, reject })
-            try {
-                await this.send(message)
-            } catch (e) {
+            this.send(message).then(value => resolve(value)).catch(e => {
                 this.responsePromiseMap.delete(id)
                 reject(e)
-            }
-        }) as any
+            })
+        })
     }
 
     /**
@@ -89,20 +85,20 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
      * on the server if it does not already exist.
      */
     public api(name: string) {
-        return new Proxy({} as any, {
+        return new Proxy({}, {
             get: (target, prop) => {
                 if (target[prop]) {
                     return target[prop]
                 } else if (typeof (prop) === 'string' && isEventFunction(prop)) {
-                    target[prop] = (...args: any[]) => {
-                        (this.eventEmitter[prop] as any)(...args)
+                    target[prop] = (...args: unknown[]) => {
+                        (this.eventEmitter[prop] as (...args: unknown[]) => void)(...args)
                         this.call(name, prop, ...args)
                     }
                 } else {
-                    target[prop] = (...args: any[]) => this.call(name, prop as any, ...args)
+                    target[prop] = (...args: unknown[]) => this.call(name, prop as string, ...args)
                 }
                 return target[prop]
             }
-        }) as any
+        })
     }
 }

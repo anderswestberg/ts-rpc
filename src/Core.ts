@@ -1,16 +1,16 @@
 import { EventEmitter } from 'events'
 
-export interface IDsModule<I = any, O = any> {
+export interface IDsModule<I = unknown, O = unknown> {
     pipe(target: IDsModule<O> | ((message: O) => void)): () => void
     receive(message: I): Promise<void>
 }
 
-export class DsModule<I = any, O = any> implements IDsModule<I, O> {
+export class DsModule<I = unknown, O = unknown> implements IDsModule<I, O> {
     private _idCounter = 0
 
     private destinations: { id: number; target: IDsModule<O> | ((message: O) => void | Promise<void>) }[] = []
 
-    constructor(sources?: IDsModule<any, I>[]) {
+    constructor(sources?: IDsModule<unknown, I>[]) {
         if (sources) {
             sources.forEach((src) => {
                 src.pipe(this)
@@ -32,6 +32,7 @@ export class DsModule<I = any, O = any> implements IDsModule<I, O> {
     /**
      * Receive and process a message.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public receive(message: I): Promise<void> {
         return Promise.resolve()
     }
@@ -42,22 +43,22 @@ export class DsModule<I = any, O = any> implements IDsModule<I, O> {
     protected async send(message: O) {
         // Await all these promises in order to propagate errors.
         await Promise.all(
-            this.destinations.map((dest) => {
+            this.destinations.map(async (dest) => {
                 if (typeof dest.target === 'function') {
                     return dest.target(message)
                 }
-                return dest.target.receive(message)
+                return await dest.target.receive(message)
             })
         )
     }
 }
 
-export class DsModule_Emitter<I = any, O = any> extends EventEmitter implements IDsModule<I, O> {
+export class DsModule_Emitter<I = unknown, O = unknown> extends EventEmitter implements IDsModule<I, O> {
     private _idCounter = 0
 
     private destinations: { id: number; target: IDsModule<O> | ((message: O) => void | Promise<void>) }[] = []
 
-    constructor(sources?: IDsModule<any, I>[]) {
+    constructor(sources?: IDsModule<unknown, I>[]) {
         super()
         if (sources) {
             sources.forEach((src) => {
@@ -80,6 +81,7 @@ export class DsModule_Emitter<I = any, O = any> extends EventEmitter implements 
     /**
      * Receive and process a message.
      */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public receive(message: I): Promise<void> {
         return Promise.resolve()
     }
@@ -90,11 +92,11 @@ export class DsModule_Emitter<I = any, O = any> extends EventEmitter implements 
     protected async send(message: O) {
         // Await all these promises in order to propagate errors.
         await Promise.all(
-            this.destinations.map((dest) => {
+            this.destinations.map(async (dest) => {
                 if (typeof dest.target === 'function') {
                     return dest.target(message)
                 }
-                return dest.target.receive(message)
+                return await dest.target.receive(message)
             })
         )
     }

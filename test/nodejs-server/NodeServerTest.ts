@@ -1,6 +1,4 @@
-import { SocketIoServer, Converter, RpcServer, TryCatch, SwitchTarget, SwitchSource, SocketIoTransport } from '../../src/index'
-import express from 'express'
-import { createServer } from 'http'
+import { SocketIoServer, Converter, RpcServer, TryCatch, SwitchSource, SocketIoTransport } from '../../src/index'
 import { ITestRpc } from './ITestRpc'
 import EventEmitter from 'events'
 
@@ -21,14 +19,13 @@ export class TestRpc extends EventEmitter implements ITestRpc {
 
 const main = async () => {
 
-    const app = express()
-    const server = createServer(app)
-    const socketIoServer = new SocketIoServer([], server)
+    //const server = createServer()
+    const socketIoServer = new SocketIoServer(undefined, 3000, false, [])
     const testRpc = new TestRpc(10)
 
     // Parse each incoming message using
     const parser = new Converter([socketIoServer], message => {
-        return JSON.parse(message)
+        return JSON.parse(message as string)
     })
 
     const switch1 = new SwitchSource([parser])
@@ -63,9 +60,11 @@ const main = async () => {
     rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
     rpcServer.manageRpc.exposeClass(TestRpc)
 
+    /*
     server.listen(port, () => {
         console.log(`Server listening on port ${port}`);
     });
+    */
 
     for (;;) {
         await new Promise(res => setTimeout(res, 5000))

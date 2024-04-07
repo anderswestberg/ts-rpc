@@ -1,12 +1,10 @@
 import { IManageRpc, JsonParser, JsonStringifier, RpcClient, SocketIoTransport } from "."
-import { v4 as uuidv4 } from 'uuid'
 
 export class RpcClientConnection {
     transport: SocketIoTransport
-    parser: JsonParser<any>
+    parser: JsonParser<unknown>
     rpcClient: RpcClient
-    stringifier: JsonStringifier<any>
-    apis: { [uuid: string]: any } = {}
+    stringifier: JsonStringifier<object>
     manageRpc: IManageRpc
     readyFlag = false
     constructor(public url: string = 'http://localhost:3000', public target?: string | string[]) {
@@ -28,11 +26,11 @@ export class RpcClientConnection {
             const delay = 10
             await new Promise(res => setTimeout(res, delay))
             time += delay
-            if (delay > timeout)
+            if (time > timeout)
                 throw('Timeout waiting for connection to remote server ' + this.url)
         }
     }
-    async createProxyToRemote(name: string, url: string | string[], ...args: any[]) {
+    async createProxyToRemote(name: string, url: string | string[], ...args: unknown[]) {
         await this.ready(5000)
         const result = await this.manageRpc.createProxyToRemote(name, url, ...args)
         return result

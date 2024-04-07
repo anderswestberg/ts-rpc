@@ -3,8 +3,8 @@ import { DsModule, IDsModule } from '../Core'
 /**
  * Converts a message using a callback function.
  */
-export class Converter<I = any, O = any> extends DsModule<I, O> {
-    constructor(sources: IDsModule<any, I>[], public converter: (message: I) => O) {
+export class Converter<I = unknown, O = unknown> extends DsModule<I, O> {
+    constructor(sources: IDsModule<unknown, I>[], public converter: (message: I) => O) {
         super(sources)
     }
     async receive(message: I) {
@@ -12,16 +12,16 @@ export class Converter<I = any, O = any> extends DsModule<I, O> {
     }
 }
 
-export class JsonStringifier<I = any> extends Converter<I, string> {
-    constructor(sources?: IDsModule<any, I>[]) {
+export class JsonStringifier<I = unknown> extends Converter<I, string> {
+    constructor(sources?: IDsModule<unknown, I>[]) {
         super(sources || [], (msg) => {
                 return JSON.stringify(msg)
             })
     }
 }
 
-export class JsonParser<O = any> extends Converter<string, O> {
-    constructor(sources?: IDsModule<any, string>[]) {
+export class JsonParser<O = unknown> extends Converter<string, O> {
+    constructor(sources?: IDsModule<unknown, string>[]) {
         super(sources || [], (msg) => {
             return JSON.parse(msg)
         })

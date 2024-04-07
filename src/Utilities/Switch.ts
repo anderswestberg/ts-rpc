@@ -4,15 +4,15 @@ import { IDsModule, DsModule } from '../Core'
  * Sends received messages to the correct target.
  * If a message is sent to a target which doesn't exist, a TargetNotFoundError is thrown.
  */
-export class SwitchSource<MsgType = any, SrcType = any, TrgtType = any> extends DsModule<any> {
-    private targets = new Map<TrgtType, IDsModule<MsgType> | ((message: MsgType) => void)>()
+export class SwitchSource<MsgType = unknown, TrgtType = unknown> extends DsModule<unknown> {
+    private targets = new Map<TrgtType, IDsModule<MsgType> | ((message: unknown) => void)>()
     constructor(
-        sources: IDsModule<any, any>[],
+        sources: IDsModule<unknown, unknown>[],
         private getTarget?: (target: TrgtType) => IDsModule<MsgType> | ((message: MsgType) => void)
     ) {
         super(sources)
     }
-    async receive(message: any) {
+    async receive(message: unknown) {
         let target = this.targets.get(message.target)
         if (!target && this.getTarget) {
             target = this.getTarget(message.target)
@@ -23,7 +23,7 @@ export class SwitchSource<MsgType = any, SrcType = any, TrgtType = any> extends 
         if (typeof target === 'function') {
             return target(message)
         }
-        return target.receive(message)
+        return await target.receive(message)
     }
     /**
      * Add a target for the switch.
@@ -55,15 +55,15 @@ export class SwitchSource<MsgType = any, SrcType = any, TrgtType = any> extends 
  * Sends a targeted message to the correct target. 
  * If a message is sent to a target which doesn't exist, a TargetNotFoundError is thrown.
  */
-export class SwitchTarget<MsgType = any, TrgtType = any> extends DsModule<any> {
+export class SwitchTarget<MsgType = unknown, TrgtType = unknown> extends DsModule<unknown> {
     private targets = new Map<TrgtType, IDsModule<MsgType> | ((message: MsgType) => void)>()
     constructor(
-        sources: IDsModule<any, any>[],
+        sources: IDsModule<unknown, unknown>[],
         private getTarget?: (target: TrgtType) => IDsModule<MsgType> | ((message: MsgType) => void)
     ) {
         super(sources)
     }
-    async receive(message: any) {
+    async receive(message: unknown) {
         let target = this.targets.get(message.target)
         if (!target && this.getTarget) {
             target = this.getTarget(message.target)
@@ -74,7 +74,7 @@ export class SwitchTarget<MsgType = any, TrgtType = any> extends DsModule<any> {
         if (typeof target === 'function') {
             return target(message)
         }
-        return target.receive(message)
+        return await target.receive(message)
     }
     /**
      * Add a target for the switch.
@@ -93,11 +93,11 @@ export class SwitchTarget<MsgType = any, TrgtType = any> extends DsModule<any> {
             this.targets.delete(identifier)
         }
     }
-    public targetPiper(target: TrgtType): IDsModule<any, MsgType> {
+    public targetPiper(target: TrgtType): IDsModule<unknown, MsgType> {
         return {
             pipe: (mod: IDsModule<MsgType> | ((message: MsgType) => void)) => {
                 return this.setTarget(target, mod)
             }
-        } as any
+        } as IDsModule<unknown, MsgType>
     }
 }

@@ -8,13 +8,13 @@ export class SocketIoTransport extends DsModule_Emitter<MsgType, MsgType> {
     private socket: SocketIoClient.Socket
     connected = false
 
-    constructor(sources?: IDsModule<any, MsgType>[]) {
+    constructor(sources?: IDsModule<unknown, MsgType>[]) {
         super(sources)
     }
     public open(address: string) {
         this.socket = SocketIoClient.io(address)
-        this.socket.on('message', (ev) => {
-            this.send(ev.data)
+        this.socket.on('message', async (ev) => {
+            await this.send(ev.data)
         })
         this.socket.on('connect', () => {
             this.connected = true

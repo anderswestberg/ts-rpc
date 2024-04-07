@@ -1,5 +1,4 @@
 import { RpcClientConnection } from '../../src/RpcClientConnection'
-import { SocketIoTransport, JsonParser, RpcClient, JsonStringifier, IManageRpc } from '../../src/index'
 import { ITestRpc } from '../nodejs-server/ITestRpc'
 
 const main = async () => {
@@ -15,28 +14,30 @@ const main = async () => {
         await new Promise(res => setTimeout(res, 10000))
     }
 */
-    let proxy2 = client.api('testRpc') as ITestRpc
-    let r = proxy2.add(2, 3)
+    const proxy2 = client.api('testRpc') as ITestRpc
+    const r = await proxy2.add(2, 3)
+    console.log(r)
 
-    proxy2.on('hejsan', (...args: any[]) => {
+    proxy2.on('hejsan', (...args: unknown[]) => {
         console.log('Event hejsan: ' + args)
     })
-    proxy2.on('svejsan', (...args: any[]) => {
+    proxy2.on('svejsan', (...args: unknown[]) => {
         console.log('Event svejsan: ' + args)
     })
 
-    let proxy = client.api('MyRpc') as any
+    const proxy = client.api('MyRpc') as { Hello: (arg) => Promise<string> }
+    /*
     let newInstance = await client.manageRpc.createRpcInstance('TestRpc', 77)
     let newInstanceRpc = client.api(newInstance) as ITestRpc
-    let sum = await newInstanceRpc.add(5, 6)
-
+    let sum = await newInstanceRpc.add(5, 6)   
     let remote = await client.manageRpc.createRpcInstance('TestRpc', 77)
+    */
     for (; ;) {
         // Should output Hello World!
-        let response = proxy.Hello('World!')
+        const response = await proxy.Hello('World!')
         console.log('Hello ' + response)
-        response = await proxy2.add(1, 2)
-        console.log('Add ' + response)
+        const answer = await proxy2.add(1, 2)
+        console.log('Add ' + answer)
         await new Promise(res => setTimeout(res, 5000))
     }
 }
