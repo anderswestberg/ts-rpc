@@ -1,8 +1,9 @@
-import { DsModule_Emitter } from '../Core'
+import { DsModule_Emitter, IDsModule } from '../Core'
 import { RpcClientConnection } from '../RpcClientConnection'
 import { isEventFunction } from './Rpc'
 import { RpcResponse, RpcRequestCallInstanceMethod, RpcEventMessage, RpcErrorResponse, RpcRequests, RequestMessageType, RpcErrorItem } from './RpcServer'
 import { EventEmitter } from 'events'
+import { v4 as uuidv4 } from 'uuid'
 
 export class RpcError extends Error {
     error: RpcErrorItem
@@ -33,8 +34,10 @@ function isErrorResponse(message: RpcResponse): message is RpcErrorResponse {
 export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
     private messageIdCounter = 1
     private responsePromiseMap = new Map<number, { resolve: Function; reject: Function }>()
-
     private eventEmitter = new EventEmitter()
+    constructor(sources?: IDsModule<any, RpcResponse>[], public target?: string | string[]) {
+        super(sources)
+    }
 
     receive(message: RpcResponse) {
         if (isEventMessage(message)) {
@@ -61,7 +64,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
      * @param params
      */
     public call(instanceName: string, method: string, ...params: string[]): Promise<any> {
-        const id = this.messageIdCounter++
+        const id = uuidv4()
         const message: RpcRequests = {
             id,
             type: RequestMessageType.CallInstanceMethod,

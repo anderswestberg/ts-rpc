@@ -1,4 +1,4 @@
-import { SocketIoServer, Converter, RpcServer, TryCatch } from '../../src/index'
+import { SocketIoServer, Converter, RpcServer, TryCatch, Switch } from '../../src/index'
 import express from 'express'
 import { createServer } from 'http'
 import { ITestRpc } from './ITestRpc'
@@ -26,6 +26,9 @@ const main = async () => {
     const socketIoServer = new SocketIoServer([], server)
     const testRpc = new TestRpc(10)
 
+    const switch1 = new SwitchIncoming([socketIoServer])
+
+    
     // Parse each incoming message using
     const parser = new Converter([socketIoServer], message => {
         return { source: message.source, message: JSON.parse(message.message.toString()) }

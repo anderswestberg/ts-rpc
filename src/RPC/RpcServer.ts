@@ -31,6 +31,7 @@ export enum RequestMessageType { CallInstanceMethod = '1', SomeOtherMessage = '2
 
 export type RpcRequestCallInstanceMethod = {
     id: any
+    target?: string
     type: RequestMessageType.CallInstanceMethod
     instanceName: string
     method: string

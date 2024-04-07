@@ -9,14 +9,14 @@ export class RpcClientConnection {
     apis: { [uuid: string]: any } = {}
     manageRpc: IManageRpc
     readyFlag = false
-    constructor(public url: string = 'http://localhost:3000') {
+    constructor(public url: string = 'http://localhost:3000', public target?: string | string[]) {
         this.init()
     }
     async init() {
         this.transport = new SocketIoTransport([])
         this.transport.open(this.url)
         this.parser = new JsonParser([this.transport])
-        this.rpcClient = new RpcClient([this.parser])
+        this.rpcClient = new RpcClient([this.parser], this.target)
         this.stringifier = new JsonStringifier([this.rpcClient])
         this.stringifier.pipe(this.transport)
         this.manageRpc = this.rpcClient.api('manageRpc')as IManageRpc
