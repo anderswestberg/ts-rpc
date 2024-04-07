@@ -1,5 +1,4 @@
 import { DsModule, IDsModule } from '../Core'
-import { SourcedMessage, TargetedMessage } from '../Utilities/Targets'
 import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
@@ -56,7 +55,7 @@ class EventProxy<SrcType> {
     }
 }
 
-export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequestCallInstanceMethod, SrcType>, TargetedMessage<RpcResponse, SrcType>> {
+export class RpcServer<SrcType = any> extends DsModule<any, any> {
     manageRpc = new ManageRpc()
     eventProxies: EventProxy<SrcType>[] = []
 
@@ -64,23 +63,23 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
         super(sources)
     }
 
-    async receive(message: SourcedMessage<RpcRequests, SrcType>) {
-        switch (message.message.type) {
+    async receive(message: any) {
+        switch (message.type) {
             case RequestMessageType.CallInstanceMethod:
-                const map = this.manageRpc.getNameSpaceMethodMap(message.message.instanceName)
-                let handler = map.get(message.message.method)
+                const map = this.manageRpc.getNameSpaceMethodMap(message.instanceName)
+                let handler = map.get(message.method)
                 if (!handler) {
-                    const inst = this.manageRpc.exposedNameSpaceInstances[message.message.instanceName]
-                    if (message.message.method === 'on' && inst instanceof EventEmitter) {
-                        const eventProxy = new EventProxy<SrcType>(this, inst, message.message.params[0], message.source)
+                    const inst = this.manageRpc.exposedNameSpaceInstances[message.instanceName]
+                    if (message.method === 'on' && inst instanceof EventEmitter) {
+                        const eventProxy = new EventProxy<SrcType>(this, inst, message.params[0], message.source)
                         this.eventProxies.push(eventProxy)
-                            ; (inst as EventEmitter).on(message.message.params[0], eventProxy.on.bind(eventProxy))
-                        this.send({ target: message.source, message: { id: message.message.id, result: 'oko' } })
+                            ; (inst as EventEmitter).on(message.params[0], eventProxy.on.bind(eventProxy))
+                        this.send({ target: message.source, message: { id: message.id, result: 'oko' } })
                     } else {
                         this.send({
                             target: message.source,
                             message: {
-                                id: message.message.id,
+                                id: message.id,
                                 error: {
                                     code: 'MethodNotFound'
                                 }
@@ -90,13 +89,13 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
                     return
                 }
 
-                let params = [...message.message.params]
+                let params = [...message.params]
 
                 // Add the additional parameters. We check how many parameters the handler
                 // takes and supply these parameters outside the function parameters.
                 // The function would have to use arguments[] to access these parameters.
-                if (message.message.additionalParameter !== undefined) {
-                    params[handler.length] = message.message.additionalParameter
+                if (message.additionalParameter !== undefined) {
+                    params[handler.length] = message.additionalParameter
                 }
                 if (message.source !== undefined) {
                     params[handler.length + 1] = message.source
@@ -104,9 +103,9 @@ export class RpcServer<SrcType = any> extends DsModule<SourcedMessage<RpcRequest
                 let result
                 try {
                     result = await handler(...params)
-                    this.send({ target: message.source, message: { id: message.message.id, result } })
+                    this.send({ target: message.source, message: { id: message.id, result } })
                 } catch (e) {
-                    this.send({ target: message.source, message: { id: message.message.id, error: { code: 'Exception', exception: e } } })
+                    this.send({ target: message.source, message: { id: message.id, error: { code: 'Exception', exception: e } } })
                 }
                 break
             case RequestMessageType.SomeOtherMessage:

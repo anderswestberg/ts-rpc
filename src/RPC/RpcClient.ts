@@ -39,7 +39,7 @@ export class RpcClient extends DsModule_Emitter<RpcResponse, RpcRequests> {
         super(sources)
     }
 
-    receive(message: RpcResponse) {
+    async receive(message: RpcResponse) {
         if (isEventMessage(message)) {
             this.eventEmitter.emit(message.event, ...message.params)
             this.emit(message.event, message.params)

@@ -2,7 +2,7 @@ import { EventEmitter } from 'events'
 
 export interface IDsModule<I = any, O = any> {
     pipe(target: IDsModule<O> | ((message: O) => void)): () => void
-    receive(message: I): Promise<void> | void
+    receive(message: I): Promise<void>
 }
 
 export class DsModule<I = any, O = any> implements IDsModule<I, O> {
@@ -32,7 +32,9 @@ export class DsModule<I = any, O = any> implements IDsModule<I, O> {
     /**
      * Receive and process a message.
      */
-    public receive(message: I): void | Promise<void> {}
+    public receive(message: I): Promise<void> {
+        return Promise.resolve()
+    }
 
     /**
      * Send a message to all modules that this module pipes to.
@@ -78,7 +80,9 @@ export class DsModule_Emitter<I = any, O = any> extends EventEmitter implements 
     /**
      * Receive and process a message.
      */
-    public receive(message: I): void | Promise<void> {}
+    public receive(message: I): Promise<void> {
+        return Promise.resolve()
+    }
 
     /**
      * Send a message to all modules that this module pipes to.

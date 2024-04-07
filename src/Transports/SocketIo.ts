@@ -23,7 +23,7 @@ export class SocketIoTransport extends DsModule_Emitter<MsgType, MsgType> {
             this.connected = false
         })
     }
-    receive(message: MsgType) {
+    async receive(message: MsgType) {
         this.socket.emit('message', message)
         console.log(message)
     }

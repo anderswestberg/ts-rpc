@@ -5,7 +5,7 @@ import { ITestRpc } from '../nodejs-server/ITestRpc'
 const main = async () => {
 
     const client = new RpcClientConnection('http://localhost:3000')
-
+/*
     let remoteProxy = await client.createProxyToRemote('testRpc2: TestRpc', 'http://localhost:3001', 10000)
     let proxy1 = client.api(remoteProxy) as ITestRpc
     let n = 0
@@ -14,8 +14,10 @@ const main = async () => {
         //proxy1.add(1000, n++)
         await new Promise(res => setTimeout(res, 10000))
     }
-
+*/
     let proxy2 = client.api('testRpc') as ITestRpc
+    let r = proxy2.add(2, 3)
+
     proxy2.on('hejsan', (...args: any[]) => {
         console.log('Event hejsan: ' + args)
     })

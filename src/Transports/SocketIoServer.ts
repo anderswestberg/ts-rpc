@@ -2,10 +2,9 @@ import * as SocketIo from 'socket.io'
 import type { Server } from 'http'
 
 import { DsModule_Emitter, IDsModule } from '../Core'
-import { TargetNotFoundError, TargetedMessage, SourcedMessage } from '../Utilities/Targets'
 
-type InputType = TargetedMessage<string | Buffer | ArrayBuffer | Buffer[], SocketIo.Socket>
-type OutputType = SourcedMessage<string | Buffer | ArrayBuffer | Buffer[], SocketIo.Socket>
+type InputType = any
+type OutputType = any
 
 export class SocketIoServer extends DsModule_Emitter<InputType, OutputType> {
     private closed = false
@@ -21,12 +20,12 @@ export class SocketIoServer extends DsModule_Emitter<InputType, OutputType> {
         this.io.on('connection', (socket) => {
             this.emit('connection', socket)
             socket.on('message', data => {
-                this.send({ source: socket, message: data })
+                this.send(data)
             })
         })
     }
-    async receive(message: TargetedMessage<string | Buffer | ArrayBuffer | Buffer[], SocketIo.Socket>) {
-        message.target.emit('message', { data: message.message })
+    async receive(message: any) {
+        this.emit('message', { data: message })
     }
     async close() {
         if (this.closed) {

@@ -1,4 +1,4 @@
-import { SocketIoServer, Converter, RpcServer, TryCatch, Switch } from '../../src/index'
+import { SocketIoServer, Converter, RpcServer, TryCatch, SwitchTarget, SwitchSource, SocketIoTransport } from '../../src/index'
 import express from 'express'
 import { createServer } from 'http'
 import { ITestRpc } from './ITestRpc'
@@ -26,24 +26,31 @@ const main = async () => {
     const socketIoServer = new SocketIoServer([], server)
     const testRpc = new TestRpc(10)
 
-    const switch1 = new SwitchIncoming([socketIoServer])
-
-    
     // Parse each incoming message using
     const parser = new Converter([socketIoServer], message => {
-        return { source: message.source, message: JSON.parse(message.message.toString()) }
+        return JSON.parse(message)
     })
 
+    const switch1 = new SwitchSource([parser])
+    if (port === 3000) {
+        const socketIoClient2 = new SocketIoTransport() // Skapa senare !!!!!!!!!!!!!!!!!!
+        socketIoClient2.open('http://localhost:3001')
+        switch1.setTarget('hejsan', socketIoClient2)
+    }
+
     // Send each parsed message to an RPC server
-    const rpcServer = new RpcServer([parser])
+    const rpcServer = new RpcServer([])
+    switch1.setTarget(undefined, rpcServer)
 
     // Serialize each outgoing message using JSON.stringify
     const stringifier = new Converter([rpcServer], message => {
-        return { target: message.target, message: JSON.stringify(message.message) }
+        return JSON.stringify(message)
     })
+    rpcServer.pipe(stringifier)
 
     // Try to send the message back. If we fail (probably the client disconnected), do nothing.
-    const tryCatch = new TryCatch([stringifier])
+    const tryCatch = new TryCatch([])
+    stringifier.pipe(tryCatch)
     tryCatch.pipe(socketIoServer)
 
     // Expose a function

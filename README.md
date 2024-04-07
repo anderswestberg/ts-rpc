@@ -122,7 +122,7 @@ const server = new WebSocketServer([], { wsOptions: { host: '127.0.0.1', port: 3
 
 // Parse each incoming message using
 const parser = new Converter([server], message => {
-    return { source: message.source, message: JSON.parse(message.message.toString()) }
+    return JSON.parse(message.toString()
 })
 
 // Send each parsed message to an RPC server
@@ -130,7 +130,7 @@ const rpcServer = new RpcServer([parser])
 
 // Serialize each outgoing message using JSON.stringify
 const stringifier = new Converter([rpcServer], message => {
-    return { target: message.target, message: JSON.stringify(message.message) }
+    return JSON.stringify(message)
 })
 
 // Try to send the message back. If we fail (probably the client disconnected), do nothing.
