@@ -17,9 +17,11 @@ export class Switch extends GenericModule {
         if (!target && this.getTarget)
             target = this.getTarget(message.target)
         if (!target)
-            throw new Error('Switch: No target found for: ' + message.target)
-        if (typeof target === 'function')
-            return target(message)
+            return
+        if (typeof target === 'function') {
+            target(message)
+            return 
+        }
         return await target.receive(message)
     }
     /**

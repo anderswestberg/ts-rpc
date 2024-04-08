@@ -1,4 +1,4 @@
-import { MessageModule, Message, MessageTypes, Payload, GenericModule } from '../Core'
+import { MessageModule, Message, MessageType, Payload, GenericModule } from '../Core'
 import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
@@ -8,7 +8,7 @@ export type RpcErrorCode = 'ClassNotFound' | 'MethodNotFound' | 'Exception'
 
 export enum RpcResponseType { success = '0', error = '1', event = '2' }
 
-export interface RpcResponse {
+export interface RpcResponse extends Payload {
     type: RpcResponseType
 }
 
@@ -61,7 +61,7 @@ const isRpcCallInstanceMethodPayload = (payload: RpcRequest): payload is RpcCall
     return (payload.type === RpcRequestType.CallInstanceMethod)
 }
 
-export class RpcServer extends MessageModule<Message, RpcRequest, Message, RpcResponse> {
+export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Message<RpcResponse>, RpcResponse> {
     manageRpc = new ManageRpc()
     eventProxies: EventProxy[] = []
 
@@ -79,9 +79,9 @@ export class RpcServer extends MessageModule<Message, RpcRequest, Message, RpcRe
                     const eventProxy = new EventProxy(this, inst, message.payload.params[0] as string, message.payload.source)
                     this.eventProxies.push(eventProxy)
                         ; (inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
-                    this.sendPayload({ id: message.id, result: 'ok' } as RpcSuccessPayload)
+                    this.sendPayload({ type: RpcResponseType.event, result: 'ok' } as RpcSuccessPayload)
                 } else
-                    this.sendPayload({ code: 'MethodNotFound' } as RpcErrorPayload)
+                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload)
                 return
             }
 
@@ -99,9 +99,9 @@ export class RpcServer extends MessageModule<Message, RpcRequest, Message, RpcRe
             let result
             try {
                 result = await handler(...params)
-                this.sendPayload({ id: message.payload.id, result } as RpcSuccessPayload)
+                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload)
             } catch (e) {
-                this.sendPayload({ code: 'Exception', exception: e } as RpcErrorPayload)
+                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload)
             }
         }
     }
@@ -204,28 +204,6 @@ export class ManageRpc implements IManageRpc {
             this.createdInstances[id] = instance
             this.exposeClassInstance(instance as object, id)
             result = id
-        }
-        return result
-    }
-    async getRemoteClientConnection(name: string, url: string) {
-        let result = this.rpcClientConnections[url]
-        if (!result) {
-            result = new RpcClientConnection(url)
-            await result.ready(5000)
-            this.rpcClientConnections[url] = result
-        }
-        return result
-    }
-    async createProxyToRemote(name: string, url: string | string[], ...args: unknown[]) {
-        let result = ''
-        const remoteUrl = Array.isArray(url) ? url[0] : url
-        const nextUrls = Array.isArray(url) ? url.slice(1) : ''
-        const remoteConnection = await this.getRemoteClientConnection(name, remoteUrl)
-        if (!nextUrls) {
-            const [instanceName, typeName] = parseDeclaration(name)
-            result = await remoteConnection.manageRpc.createRpcInstance(typeName, instanceName, ...args)
-        } else {
-            result = await remoteConnection.manageRpc.createProxyToRemote(name, nextUrls, ...args)
         }
         return result
     }

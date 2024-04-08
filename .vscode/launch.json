@@ -16,7 +16,7 @@
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ],
-            "console": "externalTerminal"
+            "console": "integratedTerminal"
         },
         {
             "name": "Test Client",
@@ -26,7 +26,7 @@
                 "<node_internals>/**"
             ],
             "type": "node",
-            "console": "externalTerminal"
+            "console": "integratedTerminal"
         },
         {
             "type": "node",
@@ -41,7 +41,7 @@
                 "${workspaceFolder}/dist/**/*.js"
             ],
             "args": ["3001"],
-            "console": "externalTerminal"
+            "console": "integratedTerminal"
         }
     ]
 }

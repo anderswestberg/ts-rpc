@@ -1,14 +1,14 @@
 import * as SocketIo from 'socket.io'
-import { createServer as createHttpServer, Server as HttpServer} from 'http'
-import { createServer as createHttpsServer, Server as HttpsServer} from 'https'
+import { createServer as createHttpServer, Server as HttpServer } from 'http'
+import { createServer as createHttpsServer, Server as HttpsServer } from 'https'
 import { GenericModule, IGenericModule } from '../Core'
 
-export class SocketIoServer extends GenericModule<unknown, unknown , unknown, unknown> {
+export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unknown> {
     closed = false
     io: SocketIo.Server
     server: HttpServer | HttpsServer
-    constructor(server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IGenericModule<unknown, unknown , unknown, unknown>[]) {
-        super(undefined, sources)
+    constructor(server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IGenericModule<unknown, unknown, unknown, unknown>[], name?: string) {
+        super(name, sources)
         if (!server)
             this.server = https ? createHttpsServer() : createHttpServer()
         this.io = new SocketIo.Server(this.server, {
@@ -27,6 +27,7 @@ export class SocketIoServer extends GenericModule<unknown, unknown , unknown, un
             this.server.listen(port)
         else
             this.server = server
+        this.readyFlag = true
     }
     async receive(message: unknown) {
         this.io.emit('message', { data: message })

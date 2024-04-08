@@ -1,10 +1,15 @@
+import { SocketIoTransport } from '../../src'
 import { RpcClientConnection } from '../../src/RpcClientConnection'
+import { MqttTransport } from '../../src/Transports/Mqtt'
 import { ITestRpc } from '../nodejs-server/ITestRpc'
 
 const main = async () => {
-
-    const client = new RpcClientConnection('http://localhost:3000')
-    const proxy2 = client.api('testRpc') as ITestRpc
+    //const transport = new SocketIoTransport('http://localhost:3000', 'NodeClientTest')
+    const transport = new MqttTransport(false, 'mqtt://localhost:1883', 'rpcServer1')
+    const client = new RpcClientConnection(transport)
+    await client.transport.ready()
+    //const proxy2 = (await client.api<ITestRpc>('testRpc')).proxy
+    const proxy3 = (await client.api<ITestRpc>('testRpc', 'rpcServer2')).proxy
 /*
     let remoteProxy = await client.createProxyToRemote('testRpc2: TestRpc', 'http://localhost:3001', 10000)
     let proxy1 = client.api(remoteProxy) as ITestRpc
@@ -25,7 +30,7 @@ const main = async () => {
     })
 */
 
-    const proxy = client.api('MyRpc') as { Hello: (arg) => Promise<string> }
+    //const proxy = (await client.api<{ Hello: (arg) => Promise<string> }>('MyRpc')).proxy
     /*
     let newInstance = await client.manageRpc.createRpcInstance('TestRpc', 77)
     let newInstanceRpc = client.api(newInstance) as ITestRpc
@@ -34,11 +39,17 @@ const main = async () => {
     */
     for (; ;) {
         // Should output Hello World!
-        const response = await proxy.Hello('World!')
-        console.log('Hello ' + response)
-        const answer = await proxy2.add(1, 2)
-        console.log('Add ' + answer)
-        await new Promise(res => setTimeout(res, 5000))
+        //const response = await proxy.Hello('World!')
+        //console.log('Hello ' + response)
+        //let answer = await proxy2.add(1, 2)
+        //console.log('Add ' + answer)
+        try {
+            let answer = await proxy3.add(1000, 2000)
+            console.log('proxy3 Add ' + answer)
+            await new Promise(res => setTimeout(res, 10))
+        } catch (e) {
+            console.log('Exception: ', e)
+        }
     }
 }
 
