@@ -1,17 +1,14 @@
 import * as SocketIo from 'socket.io'
 import { createServer as createHttpServer, Server as HttpServer} from 'http'
 import { createServer as createHttpsServer, Server as HttpsServer} from 'https'
-import { DsModule_Emitter, IDsModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core'
 
-type InputType = unknown
-type OutputType = unknown
-
-export class SocketIoServer extends DsModule_Emitter<InputType, OutputType> {
-    private closed = false
+export class SocketIoServer extends GenericModule<unknown, unknown , unknown, unknown> {
+    closed = false
     io: SocketIo.Server
     server: HttpServer | HttpsServer
-    constructor(server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IDsModule<unknown, InputType>[]) {
-        super(sources)
+    constructor(server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IGenericModule<unknown, unknown , unknown, unknown>[]) {
+        super(undefined, sources)
         if (!server)
             this.server = https ? createHttpsServer() : createHttpServer()
         this.io = new SocketIo.Server(this.server, {
@@ -32,7 +29,7 @@ export class SocketIoServer extends DsModule_Emitter<InputType, OutputType> {
             this.server = server
     }
     async receive(message: unknown) {
-        this.emit('message', { data: message })
+        this.io.emit('message', { data: message })
     }
     async close() {
         if (this.closed) {

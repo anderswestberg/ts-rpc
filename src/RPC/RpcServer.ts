@@ -1,4 +1,4 @@
-import { DsModule, IDsModule } from '../Core'
+import { MessageModule, Message, MessageTypes, Payload, GenericModule } from '../Core'
 import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
@@ -6,29 +6,32 @@ import { RpcClientConnection } from '../RpcClientConnection'
 
 export type RpcErrorCode = 'ClassNotFound' | 'MethodNotFound' | 'Exception'
 
-export type RpcErrorItem = { code: RpcErrorCode, exception?: unknown }
+export enum RpcResponseType { success = '0', error = '1', event = '2' }
 
-export type RpcErrorResponse = {
-    id: string
-    error: RpcErrorItem
+export interface RpcResponse {
+    type: RpcResponseType
 }
 
-export type RpcSuccessfulResponse = {
+export interface RpcErrorPayload extends RpcResponse {
+    code: RpcErrorCode,
+    exception?: unknown
+}
+export interface RpcSuccessPayload extends RpcResponse {
     id: string
     result: unknown
 }
-
-export type RpcEventMessage = {
+export interface RpcEventPayload extends RpcResponse {
     event: string
     params: unknown[]
 }
 
-export type RpcResponse = RpcErrorResponse | RpcSuccessfulResponse | RpcEventMessage
+export enum RpcRequestType { CallInstanceMethod = '0', SomeOtherMessage = '1' }
 
-export enum RequestMessageType { CallInstanceMethod = '1', SomeOtherMessage = '2' }
+export interface RpcRequest {
+    type: RpcRequestType
+}
 
-export type RpcRequestCallInstanceMethod = {
-    type: RequestMessageType.CallInstanceMethod
+export interface RpcCallInstanceMethodPayload extends RpcRequest {
     id: string
     source?: string
     target?: string
@@ -38,16 +41,13 @@ export type RpcRequestCallInstanceMethod = {
     additionalParameter?: unknown
 }
 
-export type RpcRequestCreateInstance = {
-    type: RequestMessageType.SomeOtherMessage
+export interface RpcCreateInstancePayload extends RpcRequest {
     id: string
     source?: string
     target?: string
     className: string
     params: unknown[]
 }
-
-export type RpcRequests = RpcRequestCallInstanceMethod | RpcRequestCreateInstance
 
 class EventProxy {
     constructor(public rpcServer: RpcServer, public instance: object, public event: string, public target: string) {
@@ -57,68 +57,57 @@ class EventProxy {
     }
 }
 
-export class RpcServer<SrcType = unknown> extends DsModule<unknown, unknown> {
+const isRpcCallInstanceMethodPayload = (payload: RpcRequest): payload is RpcCallInstanceMethodPayload => {
+    return (payload.type === RpcRequestType.CallInstanceMethod)
+}
+
+export class RpcServer extends MessageModule<Message, RpcRequest, Message, RpcResponse> {
     manageRpc = new ManageRpc()
     eventProxies: EventProxy[] = []
 
-    constructor(sources?: IDsModule<unknown, unknown>[]) {
-        super(sources)
+    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcRequest>[]) {
+        super(name, sources)
     }
 
-    async receive(message: RpcRequests) {
-        switch (message.type) {
-            case RequestMessageType.CallInstanceMethod:
-                {
-                    const map = this.manageRpc.getNameSpaceMethodMap(message.instanceName)
-                    const handler = map.get(message.method)
-                    if (!handler) {
-                        const inst = this.manageRpc.exposedNameSpaceInstances[message.instanceName]
-                        if (message.method === 'on' && inst instanceof EventEmitter) {
-                            const eventProxy = new EventProxy(this, inst, message.params[0] as string, message.source)
-                            this.eventProxies.push(eventProxy)
-                                ; (inst as EventEmitter).on(message.params[0] as string, eventProxy.on.bind(eventProxy))
-                            this.send({ target: message.source, message: { id: message.id, result: 'oko' } })
-                        } else {
-                            this.send({
-                                target: message.source,
-                                message: {
-                                    id: message.id,
-                                    error: {
-                                        code: 'MethodNotFound'
-                                    }
-                                }
-                            })
-                        }
-                        return
-                    }
+    async receive(message: Message<RpcRequest>) {
+        if (isRpcCallInstanceMethodPayload(message.payload)) {
+            const map = this.manageRpc.getNameSpaceMethodMap(message.payload.instanceName)
+            const handler = map.get(message.payload.method)
+            if (!handler) {
+                const inst = this.manageRpc.exposedNameSpaceInstances[message.payload.instanceName]
+                if (message.payload.method === 'on' && inst instanceof EventEmitter) {
+                    const eventProxy = new EventProxy(this, inst, message.payload.params[0] as string, message.payload.source)
+                    this.eventProxies.push(eventProxy)
+                        ; (inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
+                    this.sendPayload({ id: message.id, result: 'ok' } as RpcSuccessPayload)
+                } else
+                    this.sendPayload({ code: 'MethodNotFound' } as RpcErrorPayload)
+                return
+            }
 
-                    const params = [...message.params]
+            const params = [...message.payload.params]
 
-                    // Add the additional parameters. We check how many parameters the handler
-                    // takes and supply these parameters outside the function parameters.
-                    // The function would have to use arguments[] to access these parameters.
-                    if (message.additionalParameter !== undefined) {
-                        params.push(message.additionalParameter)
-                    }
-                    if (message.source !== undefined) {
-                        params.push(message.source)
-                    }
-                    let result
-                    try {
-                        result = await handler(...params)
-                        this.send({ target: message.source, message: { id: message.id, result } })
-                    } catch (e) {
-                        this.send({ target: message.source, message: { id: message.id, error: { code: 'Exception', exception: e } } })
-                    }
-                }
-                break
-            case RequestMessageType.SomeOtherMessage:
-                break
+            // Add the additional parameters. We check how many parameters the handler
+            // takes and supply these parameters outside the function parameters.
+            // The function would have to use arguments[] to access these parameters.
+            if (message.payload.additionalParameter !== undefined) {
+                params.push(message.payload.additionalParameter)
+            }
+            if (message.source !== undefined) {
+                params.push(message.source)
+            }
+            let result
+            try {
+                result = await handler(...params)
+                this.sendPayload({ id: message.payload.id, result } as RpcSuccessPayload)
+            } catch (e) {
+                this.sendPayload({ code: 'Exception', exception: e } as RpcErrorPayload)
+            }
         }
     }
 
-    sendEvent(target: SrcType, event: string, params: unknown[]) {
-        return this.send({ target, message: { event, params } })
+    async sendEvent(target: string, event: string, params: unknown[]) {
+        return await this.sendPayload({ event, params } as RpcEventPayload)
     }
 }
 
@@ -146,7 +135,7 @@ export const createInstance = (className: string, ...args: unknown[]): object =>
 }
 
 export class ManageRpc implements IManageRpc {
-    exposedNameSpaceMethodMaps: { [nameSpace: string]: Map<string, () => void> } = {}
+    exposedNameSpaceMethodMaps: { [nameSpace: string]: Map<string, (...args: unknown[]) => void> } = {}
     exposedNameSpaceInstances: { [nameSpace: string]: object } = {}
     exposedClasses: { [className: string]: new (...args: unknown[]) => unknown } = {}
     createdInstances = new Map<string, object>()

@@ -2,7 +2,7 @@ import { IManageRpc, JsonParser, JsonStringifier, RpcClient, SocketIoTransport }
 
 export class RpcClientConnection {
     transport: SocketIoTransport
-    parser: JsonParser<unknown>
+    parser: JsonParser
     rpcClient: RpcClient
     stringifier: JsonStringifier<object>
     manageRpc: IManageRpc
@@ -11,10 +11,10 @@ export class RpcClientConnection {
         this.init()
     }
     async init() {
-        this.transport = new SocketIoTransport([])
+        this.transport = new SocketIoTransport(undefined, [])
         this.transport.open(this.url)
         this.parser = new JsonParser([this.transport])
-        this.rpcClient = new RpcClient([this.parser], this.target)
+        this.rpcClient = new RpcClient('', [this.parser], this.target)
         this.stringifier = new JsonStringifier([this.rpcClient])
         this.stringifier.pipe(this.transport)
         this.manageRpc = this.rpcClient.api('manageRpc')as IManageRpc
