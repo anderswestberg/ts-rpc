@@ -37,7 +37,7 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
         super(name, sources)
     }
 
-    async receive(message: Message<RpcResponse>) {
+    async receive(message: Message<RpcResponse>, target: string) {
         if (isEventMessage(message.payload)) {
             this.eventEmitter.emit(message.payload.event, ...message.payload.params)
             this.emit(message.payload.event, message.payload.params)
@@ -69,12 +69,12 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
         const payload: RpcCallInstanceMethodPayload = {
             id: uuidv4(),
             type: RpcRequestType.CallInstanceMethod,
-            instanceName,
+            path: instanceName,
             method,
             params,
         }
         return new Promise((resolve, reject) => {
-            this.sendPayload(payload, remote).then(value => {
+            this.sendPayload(payload, MessageType.RequestMessage, remote).then(value => {
                 this.responsePromiseMap.set(payload.id, { resolve, reject })
                 setTimeout(() => {
                     reject('Call timeout')

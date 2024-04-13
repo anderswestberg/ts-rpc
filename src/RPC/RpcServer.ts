@@ -2,11 +2,11 @@ import { MessageModule, Message, MessageType, Payload, GenericModule } from '../
 import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
-import { RpcClientConnection } from '../RpcClientConnection'
+import { RpcClientConnection } from '../Utilities/RpcClientConnection'
 
 export type RpcErrorCode = 'ClassNotFound' | 'MethodNotFound' | 'Exception'
 
-export enum RpcResponseType { success = '0', error = '1', event = '2' }
+export enum RpcResponseType { success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
 export interface RpcResponse extends Payload {
     type: RpcResponseType
@@ -25,7 +25,7 @@ export interface RpcEventPayload extends RpcResponse {
     params: unknown[]
 }
 
-export enum RpcRequestType { CallInstanceMethod = '0', SomeOtherMessage = '1' }
+export enum RpcRequestType { CallInstanceMethod = 'POST', SomeOtherMessage = 'OTHER' }
 
 export interface RpcRequest {
     type: RpcRequestType
@@ -35,10 +35,9 @@ export interface RpcCallInstanceMethodPayload extends RpcRequest {
     id: string
     source?: string
     target?: string
-    instanceName: string
+    path: string
     method: string
     params: unknown[]
-    additionalParameter?: unknown
 }
 
 export interface RpcCreateInstancePayload extends RpcRequest {
@@ -69,45 +68,39 @@ export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Me
         super(name, sources)
     }
 
-    async receive(message: Message<RpcRequest>) {
+    async receive(message: Message<RpcRequest>, target: string) {
         if (isRpcCallInstanceMethodPayload(message.payload)) {
-            const map = this.manageRpc.getNameSpaceMethodMap(message.payload.instanceName)
+            const map = this.manageRpc.getNameSpaceMethodMap(message.payload.path)
             const handler = map.get(message.payload.method)
             if (!handler) {
-                const inst = this.manageRpc.exposedNameSpaceInstances[message.payload.instanceName]
+                const inst = this.manageRpc.exposedNameSpaceInstances[message.payload.path]
                 if (message.payload.method === 'on' && inst instanceof EventEmitter) {
                     const eventProxy = new EventProxy(this, inst, message.payload.params[0] as string, message.payload.source)
                     this.eventProxies.push(eventProxy)
                         ; (inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
-                    this.sendPayload({ type: RpcResponseType.event, result: 'ok' } as RpcSuccessPayload)
+                    this.sendPayload({ type: RpcResponseType.event, result: 'ok' } as RpcSuccessPayload, MessageType.ResponseMessage, message.source)
                 } else
-                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload)
+                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, message.source)
                 return
             }
 
             const params = [...message.payload.params]
 
-            // Add the additional parameters. We check how many parameters the handler
-            // takes and supply these parameters outside the function parameters.
-            // The function would have to use arguments[] to access these parameters.
-            if (message.payload.additionalParameter !== undefined) {
-                params.push(message.payload.additionalParameter)
-            }
             if (message.source !== undefined) {
                 params.push(message.source)
             }
             let result
             try {
                 result = await handler(...params)
-                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload)
+                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload, MessageType.ResponseMessage, message.source)
             } catch (e) {
-                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload)
+                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload, MessageType.ErrorMessage, message.source)
             }
         }
     }
 
     async sendEvent(target: string, event: string, params: unknown[]) {
-        return await this.sendPayload({ event, params } as RpcEventPayload)
+        return await this.sendPayload({ event, params } as RpcEventPayload, MessageType.EventMessage)
     }
 }
 

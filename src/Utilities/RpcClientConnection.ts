@@ -1,4 +1,7 @@
-import { GenericModule, IManageRpc, JsonParser, JsonStringifier, RpcClient } from "."
+import { GenericModule } from "../Core"
+import { IManageRpc } from "../RPC/Rpc"
+import { RpcClient } from "../RPC/RpcClient"
+import { JsonParser, JsonStringifier } from "./Converters"
 
 export class RpcClientConnection {
     parser: JsonParser
@@ -6,12 +9,12 @@ export class RpcClientConnection {
     stringifier: JsonStringifier<object>
     manageRpc: IManageRpc
     readyFlag = false
-    constructor(public transport: GenericModule, public target?: string | string[]) {
+    constructor(public name: string, public transport: GenericModule, public target?: string | string[]) {
         this.init()
     }
     async init() {
         this.parser = new JsonParser([this.transport])
-        this.rpcClient = new RpcClient('', [this.parser], this.target)
+        this.rpcClient = new RpcClient(this.name, [this.parser], this.target)
         this.stringifier = new JsonStringifier([this.rpcClient])
         this.stringifier.pipe(this.transport)
         this.manageRpc = this.rpcClient.api('manageRpc')as IManageRpc

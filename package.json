@@ -2,12 +2,15 @@
   "name": "@anderswestberg/ts-rpc",
   "version": "0.1.1",
   "description": "TypeScript RPC system",
-  "main": "dist/index.js",
-  "browser": "dist/index-web.js",
+  "main": "dist/src/index.js",
+  "browser": "dist/src/index-web.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepack": "rimraf ./dist && tsc"
   },
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/source-repo/ts-rpc.git"
@@ -18,15 +21,18 @@
     "@types/node": "^20.12.2",
     "@types/socket.io": "^3.0.2",
     "events": "^3.3.0",
-    "mqtt": "^5.5.0",
-    "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5",
     "uuid": "^9.0.1",
     "ws": "^8.16.0"
   },
+  "peerDependencies": {
+    "mqtt": "^5.5.0",
+    "socket.io": "^4.7.5"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.2",
     "@eslint/js": "^9.0.0",
+    "@seald-io/nedb": "^4.0.4",
     "@types/express": "^4.17.21",
     "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

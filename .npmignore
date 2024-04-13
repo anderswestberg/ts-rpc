@@ -3,4 +3,6 @@
 src
 .gitignore
 tsconfig.json
+.eslintrc.cjs
 test/
+web-client/

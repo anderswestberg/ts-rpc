@@ -20,7 +20,7 @@ export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unk
         this.io.on('connection', (socket) => {
             this.emit('connection', socket)
             socket.on('message', async data => {
-                await this.send(data)
+                await this.send(data, undefined)
             })
         })
         if (this.server)
@@ -29,7 +29,7 @@ export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unk
             this.server = server
         this.readyFlag = true
     }
-    async receive(message: unknown) {
+    async receive(message: unknown, target: string) {
         this.io.emit('message', { data: message })
     }
     async close() {

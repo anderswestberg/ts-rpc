@@ -1,23 +1,22 @@
-import * as SocketIoClient from 'socket.io-client'
+import { io, Socket } from 'socket.io-client'
+import { GenericModule, IGenericModule } from '../Core'
 
-import { GenericModule, IGenericModule, MessageModule } from '../Core'
-
-type MsgType = string | Buffer | ArrayBuffer | Buffer[]
+type MsgType = string | ArrayBuffer
 
 export class SocketIoTransport extends GenericModule {
-    socket: SocketIoClient.Socket
+    socket: Socket
     connected = false
 
-    constructor(url: string, name?: string, sources?: IGenericModule[]) {
+    constructor(url?: string, name?: string, sources?: IGenericModule[]) {
         super(name, sources)
         this.open(url)
     }
 
-    protected async open(address: string) {
-        this.socket = SocketIoClient.io(address)
+    protected async open(address?: string) {
+        this.socket = io(address)
         this.socket.on('message', async (ev) => {
             try {
-                await this.send(ev.data)
+                await this.send(ev.data, this.name)
             } catch (e) {
                 console.log('Exception: ', e)
             }
@@ -30,7 +29,9 @@ export class SocketIoTransport extends GenericModule {
         })
         this.readyFlag = true
     }
-    async receive(message: MsgType) {
+    async receive(message: MsgType, target: string) {
+        if (!this.connected)
+            await new Promise(res => setTimeout(res, 1000))
         this.socket.emit('message', message)
     }
 }

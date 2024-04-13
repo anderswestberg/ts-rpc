@@ -1,23 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { dsNodesTest } from './WebClientTest'
-
-let clientObj: any = undefined
-let gettingClient = false
+import { LocalDataProvider } from './data-provider'
+import { dataProvider } from './data-provider'
 
 function App() {
   const [count, setCount] = useState(0)
   const [reply, setReply] = useState('')
-  if (!gettingClient) {
-    gettingClient = true
-    dsNodesTest().then(value => {
-      clientObj = value
-    }).catch(reason => {
-      console.log(reason)
-    })
-  }
+  const [useDataProvider, setUseDataProvider] = useState<LocalDataProvider>()
+  useEffect(() => {
+    (async () => {
+      const dp = await dataProvider()
+      setUseDataProvider(dp?.proxy as LocalDataProvider)
+    })()
+  }, [])
+  useEffect(() => {
+    (async () => {
+      await useDataProvider?.getList('project', { hej: 'svejs'})
+    })()
+  }, [useDataProvider])
   return (
     <>
       <div>
@@ -32,10 +34,6 @@ function App() {
       <div className="card">
         <button onClick={async () => {
           setCount((count) => count + 1)
-          if (clientObj && clientObj.client) {
-            const reply = await clientObj.client.Hello()
-            setReply(reply)
-          }
         }}>
           count is {count}, reply is {reply}
         </button>

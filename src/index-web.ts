@@ -1,4 +1,5 @@
 export * from './Core'
+export * from './Utilities/RpcClientConnection'
 
 export * from './Transports/SocketIo'
 

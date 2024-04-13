@@ -1,15 +1,16 @@
 import { SocketIoTransport } from '../../src'
-import { RpcClientConnection } from '../../src/RpcClientConnection'
+import { RpcClientConnection } from '../../src/Utilities/RpcClientConnection'
 import { MqttTransport } from '../../src/Transports/Mqtt'
 import { ITestRpc } from '../nodejs-server/ITestRpc'
 
 const main = async () => {
-    //const transport = new SocketIoTransport('http://localhost:3000', 'NodeClientTest')
-    const transport = new MqttTransport(false, 'mqtt://localhost:1883', 'rpcServer1')
-    const client = new RpcClientConnection(transport)
+    const name = 'rpcClient1'
+    const transport = new SocketIoTransport('http://localhost:3000')
+    //const transport = new MqttTransport(false, 'mqtt://localhost:1883', name)
+    const client = new RpcClientConnection(name, transport)
     await client.transport.ready()
     //const proxy2 = (await client.api<ITestRpc>('testRpc')).proxy
-    const proxy3 = (await client.api<ITestRpc>('testRpc', 'rpcServer2')).proxy
+    const proxy3 = (await client.api<ITestRpc>('testRpc', 'rpcServer1')).proxy
 /*
     let remoteProxy = await client.createProxyToRemote('testRpc2: TestRpc', 'http://localhost:3001', 10000)
     let proxy1 = client.api(remoteProxy) as ITestRpc
@@ -22,12 +23,6 @@ const main = async () => {
     const r = await proxy2.add(2, 3)
     console.log(r)
 
-    proxy2.on('hejsan', (...args: unknown[]) => {
-        console.log('Event hejsan: ' + args)
-    })
-    proxy2.on('svejsan', (...args: unknown[]) => {
-        console.log('Event svejsan: ' + args)
-    })
 */
 
     //const proxy = (await client.api<{ Hello: (arg) => Promise<string> }>('MyRpc')).proxy
@@ -36,6 +31,14 @@ const main = async () => {
     let newInstanceRpc = client.api(newInstance) as ITestRpc
     let sum = await newInstanceRpc.add(5, 6)   
     let remote = await client.manageRpc.createRpcInstance('TestRpc', 77)
+    */
+   /*
+    proxy3.on('hejsan', (...args: unknown[]) => {
+        console.log('Event hejsan: ' + args)
+    })
+    proxy3.on('svejsan', (...args: unknown[]) => {
+        console.log('Event svejsan: ' + args)
+    })
     */
     for (; ;) {
         // Should output Hello World!

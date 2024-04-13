@@ -7,8 +7,8 @@ export class Converter<I = unknown, O = unknown> extends GenericModule<I, unknow
     constructor(sources: IGenericModule<unknown, unknown, I, unknown>[], public converter: (message: I) => O) {
         super(undefined, sources)
     }
-    async receive(message: I) {
-        await this.send(this.converter(message))
+    async receive(message: I, target: string) {
+        await this.send(this.converter(message), target)
     }
 }
 

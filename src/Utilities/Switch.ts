@@ -12,17 +12,17 @@ export class Switch extends GenericModule {
     ) {
         super(undefined, sources)
     }
-    async receive(message: Message) {
-        let target = this.targets.get(message.target)
-        if (!target && this.getTarget)
-            target = this.getTarget(message.target)
-        if (!target)
+    async receive(message: Message, target: string) {
+        let switchTarget = this.targets.get(target)
+        if (!switchTarget && this.getTarget)
+            switchTarget = this.getTarget(target)
+        if (!switchTarget)
             return
-        if (typeof target === 'function') {
-            target(message)
+        if (typeof switchTarget === 'function') {
+            switchTarget(message)
             return 
         }
-        return await target.receive(message)
+        return await switchTarget.receive(message, target)
     }
     /**
      * Add a target for the switch.
@@ -30,22 +30,41 @@ export class Switch extends GenericModule {
      * @param mod The module to send the messages to.
      * @returns A function which can be called to remove this target.
      */
-    public setTarget(identifier: string, mod: IGenericModule | ((message: unknown) => void)) {
-        this.targets.set(identifier, mod)
+    public setTarget(mod: IGenericModule | ((message: unknown) => void), identifier?: string) {
+        const getNameFromMod = (mod: IGenericModule | ((message: unknown) => void)) => {
+            let result = ''
+            if (typeof mod !== 'function')
+                result = mod.getName()
+            return result
+        }
+        const targetName = (identifier === undefined) ? getNameFromMod(mod) : identifier
+        this.targets.set(targetName, mod)
         let deleted = false
         return () => {
             if (deleted) {
                 return
             }
             deleted = true
-            this.targets.delete(identifier)
+            this.targets.delete(targetName)
         }
     }
     public targetPiper(target: string): IGenericModule {
         return {
             pipe: (mod: IGenericModule | ((message: Message) => void)) => {
-                return this.setTarget(target, mod)
+                return this.setTarget(mod, target)
             }
         } as any
+    }
+    targetExists(name: string) {
+        let result = super.targetExists(name)
+        if (!result) {
+            this.targets.forEach(target => {
+                if (typeof target === 'function')
+                    return
+                if (!result && target.targetExists(name))
+                    result = true
+            })
+        }
+        return result
     }
 }

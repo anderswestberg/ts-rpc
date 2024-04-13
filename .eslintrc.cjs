@@ -1,6 +1,8 @@
+const { SemicolonPreference } = require("typescript");
+
 module.exports = {
   root: true,
-  env: { browser: true, es2020: true },
+  env: { browser: false, es2020: true },
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
@@ -9,5 +11,7 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: [],
   rules: {
+    "semi": "off",
+    "@typescript-eslint/semi": [on, "error"]
   },
 }
