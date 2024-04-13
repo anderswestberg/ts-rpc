@@ -5,41 +5,23 @@ import { ITestRpc } from '../nodejs-server/ITestRpc'
 
 const main = async () => {
     const name = 'rpcClient1'
-    const transport = new SocketIoTransport('http://localhost:3000')
-    //const transport = new MqttTransport(false, 'mqtt://localhost:1883', name)
-    const client = new RpcClientConnection(name, transport)
+    //const transport = new SocketIoTransport('http://localhost:3000')
+    const transport = new MqttTransport(false, 'mqtt://localhost:1883', name)
+    const client = new RpcClientConnection(name, transport, 'rpcServer1')
     await client.transport.ready()
-    //const proxy2 = (await client.api<ITestRpc>('testRpc')).proxy
-    const proxy3 = (await client.api<ITestRpc>('testRpc', 'rpcServer1')).proxy
-/*
-    let remoteProxy = await client.createProxyToRemote('testRpc2: TestRpc', 'http://localhost:3001', 10000)
-    let proxy1 = client.api(remoteProxy) as ITestRpc
-    let n = 0
-    proxy1.add(1000, n++)
-    while (true) {
-        //proxy1.add(1000, n++)
-        await new Promise(res => setTimeout(res, 10000))
-    }
-    const r = await proxy2.add(2, 3)
-    console.log(r)
+    const proxy = (await client.api<ITestRpc>('testRpc')).proxy
 
-*/
-
-    //const proxy = (await client.api<{ Hello: (arg) => Promise<string> }>('MyRpc')).proxy
-    /*
-    let newInstance = await client.manageRpc.createRpcInstance('TestRpc', 77)
-    let newInstanceRpc = client.api(newInstance) as ITestRpc
-    let sum = await newInstanceRpc.add(5, 6)   
-    let remote = await client.manageRpc.createRpcInstance('TestRpc', 77)
-    */
-   /*
-    proxy3.on('hejsan', (...args: unknown[]) => {
+    let res = await proxy.on('hejsan', (...args: unknown[]) => {
         console.log('Event hejsan: ' + args)
     })
-    proxy3.on('svejsan', (...args: unknown[]) => {
-        console.log('Event svejsan: ' + args)
-    })
-    */
+
+    for (; ;) {
+        await new Promise(res => setTimeout(res, 1000))
+    }
+    let newInstance = await client.manageRpc.createRpcInstance('TestRpc', undefined, 1000)
+    let newInstanceRpc = (await client.api(newInstance)).proxy as ITestRpc
+    let sum = await newInstanceRpc.add(5, 6)   
+    let remote = await client.manageRpc.createRpcInstance('TestRpc', 'myInstance', 77)
     for (; ;) {
         // Should output Hello World!
         //const response = await proxy.Hello('World!')
@@ -47,9 +29,9 @@ const main = async () => {
         //let answer = await proxy2.add(1, 2)
         //console.log('Add ' + answer)
         try {
-            let answer = await proxy3.add(1000, 2000)
+            let answer = await proxy.add(1000, 2000)
             console.log('proxy3 Add ' + answer)
-            await new Promise(res => setTimeout(res, 10))
+            await new Promise(res => setTimeout(res, 1000))
         } catch (e) {
             console.log('Exception: ', e)
         }

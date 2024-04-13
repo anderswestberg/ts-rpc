@@ -1,8 +1,7 @@
 import { GenericModule } from "../Core"
 import { RpcServer } from "../RPC/RpcServer"
-import { JsonParser, JsonStringifier, JsonStringifierToBuffer } from "./Converters"
+import { JsonParser, JsonStringifierToBuffer } from "./Converters"
 import { Switch } from "./Switch"
-import { TryCatch } from "./TryCatch"
 
 export class RpcServerConnection {
     parser: JsonParser
@@ -12,6 +11,9 @@ export class RpcServerConnection {
     switch: Switch
     constructor(public name: string, public transports: GenericModule[]) {
         this.init()
+    }
+    addTarget(target: string, transport: GenericModule) {
+        this.switch.setTarget(transport)
     }
     async init() {
         this.parser = new JsonParser(this.transports)

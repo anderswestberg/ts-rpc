@@ -5,13 +5,13 @@ export const MAX_HEADER_LENGTH = 256
 export const HEADER_DELIMITER = '$'
 
 export interface IGenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown> {
-    pipe(target: GenericModule<O, OP, unknown, unknown> | ((message: O) => void))
+    pipe(target: IGenericModule)
     receive(message: I, source: string, target: string): Promise<void>
     send(message: O, source: string, target: string): Promise<void>
     sendPayload(payload: OP, messageType: MessageType, source: string, target: string): Promise<void>
     ready(): Promise<boolean>
     getName(): string
-    targetExists(name: string): boolean
+    targetExists(name: string, level?: number): IGenericModule
 }
 
 export interface MessageHeader {
@@ -22,8 +22,8 @@ export interface MessageHeader {
 }
 
 export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown> extends EventEmitter implements IGenericModule<I, IP, O, OP> {
-    destinations: { id: string; target: IGenericModule<O, OP, I, IP> | ((message: O) => void | Promise<void>) }[] = []
-    knownSources: Map<string, IGenericModule<O, OP, I, IP> | ((message: O) => void | Promise<void>)>
+    destinations: { id: string; target: IGenericModule }[] = []
+    static knownSources: { [source: string]: IGenericModule } = {}
     readyFlag = false
     seq = 0
 
@@ -90,6 +90,8 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
             } else
                 nullPos = 0
         }
+        if (result[0])
+            this.setKnownSource(result[0].source)
         return result
     }
 
@@ -98,19 +100,23 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
         return this.name
     }
 
-    targetExists(name: string) {
-        let result = this.name === name
+    targetExists(name: string, level: number = 0) {
+        if (level > 10)
+            console.log('Ooops')
+        let result: IGenericModule
+        if (this.name === name)
+            result = this
+        if (GenericModule.knownSources[name])
+            result = GenericModule.knownSources[name]
         if (!result) {
             this.destinations.map(dest => {
-                if (typeof dest.target === 'function')
-                    return
-                if (!result && dest.target.targetExists(name))
-                    result = true
+                if (!result && dest.target.targetExists(name, level + 1))
+                    result = dest.target
             })
         }
         return result
     }
-    pipe(target: IGenericModule<O, OP, unknown, unknown> | ((message: O) => void)) {
+    pipe(target: IGenericModule<O, OP, unknown, unknown>) {
         const id = uuidv4()
         this.destinations.push({ id, target })
         return () => {
@@ -118,19 +124,19 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
         }
     }
 
-    receive(message: I, source: string, target: string): Promise<void> {
-        return Promise.resolve()
+    async receive(message: I, source: string, target: string) {
+        return
     }
 
     async send(message: O, source: string, target: string) {
         await Promise.all(
             this.destinations.map(async (dest) => {
-                if (typeof dest.target === 'function') {
-                    return dest.target(message)
-                }
                 return await dest.target.receive(message, source, target)
             })
         )
+    }
+    setKnownSource(source: string) {
+        GenericModule.knownSources[source] = this
     }
     async sendPayload(payload: OP, messageType: MessageType, source: string, target: string) {
     }
@@ -171,7 +177,7 @@ export class MessageModule<I extends Message<IP>, IP extends Payload, O extends 
         }
     }
 
-    pipe(target: IGenericModule<O, OP, Message, unknown> | ((message: O) => void)) {
+    pipe(target: IGenericModule<O, OP, Message, unknown>) {
         const id = uuidv4()
         this.destinations.push({ id, target })
         return () => {
@@ -186,9 +192,6 @@ export class MessageModule<I extends Message<IP>, IP extends Payload, O extends 
     async send(message: O, source: string, target: string) {
         await Promise.all(
             this.destinations.map(async (dest) => {
-                if (typeof dest.target === 'function') {
-                    return dest.target(message)
-                }
                 return await dest.target.receive(message, source, target)
             })
         )

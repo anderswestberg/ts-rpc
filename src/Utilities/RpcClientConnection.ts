@@ -9,16 +9,16 @@ export class RpcClientConnection {
     stringifier: JsonStringifierToBuffer<object>
     manageRpc: IManageRpc
     readyFlag = false
-    constructor(public name: string, public transport: GenericModule, public target?: string | string[]) {
+    constructor(public name: string, public transport: GenericModule, public defaultTarget?: string) {
         this.init()
     }
     async init() {
         this.parser = new JsonParser([this.transport])
-        this.rpcClient = new RpcClient(this.name, [this.parser], this.target)
+        this.rpcClient = new RpcClient(this.name, [this.parser], this.defaultTarget)
         this.stringifier = new JsonStringifierToBuffer([this.rpcClient])
         this.stringifier.pipe(this.transport)
-        this.manageRpc = this.rpcClient.api('manageRpc')as IManageRpc
         this.readyFlag = true
+        this.manageRpc = (await this.api('manageRpc')).proxy as IManageRpc
     }
     async ready() {
         while (!this.transport.readyFlag || !this.readyFlag)
@@ -27,7 +27,7 @@ export class RpcClientConnection {
     async api<T>(name: string, target?: string) {
         await this.ready()
         return {
-            proxy: this.rpcClient.api(name, target) as T
+            proxy: this.rpcClient.api(name, target ? target : this.defaultTarget) as T
         }
     }
 }

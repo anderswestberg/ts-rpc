@@ -100,7 +100,7 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
                 } else if (typeof (prop) === 'string' && isEventFunction(prop)) {
                     target[prop] = (...args: unknown[]) => {
                         (this.eventEmitter[prop] as (...args: unknown[]) => void)(...args)
-                        this.call(remote, name, prop, ...args)
+                        return this.call(remote, name, prop, ...args)
                     }
                 } else {
                     target[prop] = (...args: unknown[]) => this.call(remote, name, prop as string, ...args)
