@@ -1,8 +1,5 @@
 import { GenericModule, IGenericModule } from '../Core'
 
-/**
- * Converts a message using a callback function.
- */
 export class Converter<I = unknown, O = unknown> extends GenericModule<I, unknown, O, unknown> {
     constructor(sources: IGenericModule<unknown, unknown, I, unknown>[], public converter: (message: I) => O) {
         super(undefined, sources)

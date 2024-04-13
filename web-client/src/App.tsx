@@ -3,23 +3,29 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import { LocalDataProvider } from './data-provider'
-import { dataProvider } from './data-provider'
+import { getDataProvider } from './data-provider'
+import { Buffer } from 'buffer'
 
 function App() {
   const [count, setCount] = useState(0)
   const [reply, setReply] = useState('')
-  const [useDataProvider, setUseDataProvider] = useState<LocalDataProvider>()
+  const [dataProvider, setDataProvider] = useState<LocalDataProvider>()
   useEffect(() => {
     (async () => {
-      const dp = await dataProvider()
-      setUseDataProvider(dp?.proxy as LocalDataProvider)
+      const dp = await getDataProvider()
+      if (dp)
+        setDataProvider(dp?.proxy as LocalDataProvider)
     })()
   }, [])
   useEffect(() => {
     (async () => {
-      await useDataProvider?.getList('project', { hej: 'svejs'})
+      const buf = Buffer.from('abc')
+      console.log(buf)
+      const res = await dataProvider?.getList('project', { hej: 'svejs'})
+      if (res?.value)
+        setReply(res.value)
     })()
-  }, [useDataProvider])
+  }, [dataProvider])
   return (
     <>
       <div>

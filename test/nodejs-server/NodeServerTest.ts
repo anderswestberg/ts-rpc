@@ -19,6 +19,13 @@ export class TestRpc extends EventEmitter implements ITestRpc {
     }
 }
 
+export class DataProvider {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async getList(...args: unknown[]) {
+        return { value: 'abc', data: [] }
+    }
+}
+
 const main = async () => {
 
     let name = 'rpcServer1'
@@ -40,6 +47,8 @@ const main = async () => {
 
     rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
     rpcServerConnection.rpcServer.manageRpc.exposeClass(TestRpc)
+    const dataProvider = new DataProvider()
+    rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
 
     /*
     server.listen(port, () => {
