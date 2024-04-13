@@ -1,4 +1,4 @@
-import { SocketIoServer, RpcServerConnection } from '../../src/index'
+import { SocketIoServer, RpcServerConnection, MqttTransport } from '../../src/index'
 import { ITestRpc } from './ITestRpc'
 import EventEmitter from 'events'
 
@@ -25,10 +25,10 @@ const main = async () => {
     if (port !== 3000)
         name = 'rpcServer2'
     const transport = new SocketIoServer(undefined, port, false, [], name)
-    //const transport = new MqttTransport(true, 'mqtt://localhost:1883', name)
+    const transport2 = new MqttTransport(true, 'mqtt://localhost:1883', name)
     const testRpc = new TestRpc(10)
 
-    const rpcServerConnection = new RpcServerConnection(name, transport)
+    const rpcServerConnection = new RpcServerConnection(name, [transport, transport2])
 
     // Expose a function
     rpcServerConnection.rpcServer.manageRpc.exposeObject({

@@ -75,7 +75,7 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
             params,
         }
         return new Promise((resolve, reject) => {
-            this.sendPayload(payload, MessageType.RequestMessage, remote).then(() => {
+            this.sendPayload(payload, MessageType.RequestMessage, this.name, remote).then(() => {
                 this.responsePromiseMap.set(payload.id, { resolve, reject })
                 setTimeout(() => {
                     reject('Call timeout')

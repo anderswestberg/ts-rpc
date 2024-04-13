@@ -12,7 +12,7 @@ export class Switch extends GenericModule {
     ) {
         super(undefined, sources)
     }
-    async receive(message: Message, target: string) {
+    async receive(message: Message, source: string, target: string) {
         let switchTarget = this.targets.get(target)
         if (!switchTarget && this.getTarget)
             switchTarget = this.getTarget(target)
@@ -22,23 +22,23 @@ export class Switch extends GenericModule {
             switchTarget(message)
             return 
         }
-        return await switchTarget.receive(message, target)
+        return await switchTarget.receive(message, source, target)
     }
     /**
      * Add a target for the switch.
+     * @param target The module to send the messages to.
      * @param identifier A unique identifier for this target.
-     * @param mod The module to send the messages to.
      * @returns A function which can be called to remove this target.
      */
-    public setTarget(mod: IGenericModule | ((message: unknown) => void), identifier?: string) {
+    public setTarget(target: IGenericModule | ((message: unknown) => void), identifier?: string) {
         const getNameFromMod = (mod: IGenericModule | ((message: unknown) => void)) => {
             let result = ''
             if (typeof mod !== 'function')
                 result = mod.getName()
             return result
         }
-        const targetName = (identifier === undefined) ? getNameFromMod(mod) : identifier
-        this.targets.set(targetName, mod)
+        const targetName = (identifier === undefined) ? getNameFromMod(target) : identifier
+        this.targets.set(targetName, target)
         let deleted = false
         return () => {
             if (deleted) {
@@ -47,6 +47,10 @@ export class Switch extends GenericModule {
             deleted = true
             this.targets.delete(targetName)
         }
+    }
+    public setTargets(targets: (IGenericModule | ((message: unknown) => void))[]) {
+        for (const target of targets)
+            this.setTarget(target)
     }
     public targetPiper(target: string): IGenericModule {
         return {

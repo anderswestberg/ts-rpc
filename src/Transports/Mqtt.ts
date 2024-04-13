@@ -2,13 +2,11 @@ import * as mqtt from 'mqtt'
 
 import { GenericModule, IGenericModule } from '../Core'
 
-type MsgType = string
-
-export class MqttTransport extends GenericModule<MsgType, unknown, MsgType, unknown> {
+export class MqttTransport extends GenericModule<string | Buffer, unknown, string | Buffer, unknown> {
     client: mqtt.MqttClient
     connected = false
 
-    constructor(public server: boolean, url: string, public mqttName: string, name?: string, sources?: IGenericModule<unknown, unknown, MsgType, unknown>[]) {
+    constructor(public server: boolean, url: string, public mqttName: string, name?: string, sources?: IGenericModule<unknown, unknown, string, unknown>[]) {
         super(name, sources)
         this.open(url)
     }
@@ -19,9 +17,9 @@ export class MqttTransport extends GenericModule<MsgType, unknown, MsgType, unkn
     async open(address: string) {
         this.client = mqtt.connect(address)
         this.client.on('message', async (topic, message) => {
-            const target = topic.split('/').pop()
-            if (this.targetExists(target))
-                await this.send(message.toString('utf-8'), target)
+            const [header, payload] = this.extractHeader(message)
+            if (header && this.targetExists(header.target))
+                await this.send(payload, header.source, header.target)
         })
         this.client.on('connect', () => {
             this.connected = true
@@ -32,7 +30,7 @@ export class MqttTransport extends GenericModule<MsgType, unknown, MsgType, unkn
         })
         this.readyFlag = true
     }
-    async receive(message: MsgType, target: string) {
-        this.client.publish(this.topicName(target), message)
+    async receive(message: string | Buffer, source: string, target: string) {
+        this.client.publish(this.topicName(target), this.prependHeader(source, target, message))
     }
 }

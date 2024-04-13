@@ -3,7 +3,7 @@ import { createServer as createHttpServer, Server as HttpServer } from 'http'
 import { createServer as createHttpsServer, Server as HttpsServer } from 'https'
 import { GenericModule, IGenericModule } from '../Core'
 
-export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unknown> {
+export class SocketIoServer extends GenericModule<string | Buffer, unknown, string | Buffer, unknown> {
     closed = false
     io: SocketIo.Server
     server: HttpServer | HttpsServer
@@ -19,8 +19,10 @@ export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unk
         })
         this.io.on('connection', (socket) => {
             this.emit('connection', socket)
-            socket.on('message', async data => {
-                await this.send(data, undefined)
+            socket.on('message', async message => {
+                const [header, payload] = this.extractHeader(message)
+                if (header && this.targetExists(header.target))
+                    await this.send(payload, header.source, header.target)
             })
         })
         if (this.server)
@@ -30,8 +32,8 @@ export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unk
         this.readyFlag = true
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async receive(message: unknown, target: string) {
-        this.io.emit('message', { data: message })
+    async receive(message: string | Buffer, source: string, target: string) {
+        this.io.emit('message', this.prependHeader(source, target, message))
     }
     async close() {
         if (this.closed) {

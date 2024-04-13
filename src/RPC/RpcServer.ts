@@ -68,7 +68,7 @@ export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Me
         super(name, sources)
     }
 
-    async receive(message: Message<RpcRequest>, target: string) {
+    async receive(message: Message<RpcRequest>, source: string, target: string) {
         if (isRpcCallInstanceMethodPayload(message.payload)) {
             const map = this.manageRpc.getNameSpaceMethodMap(message.payload.path)
             const handler = map.get(message.payload.method)
@@ -77,10 +77,10 @@ export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Me
                 if (message.payload.method === 'on' && inst instanceof EventEmitter) {
                     const eventProxy = new EventProxy(this, inst, message.payload.params[0] as string, message.payload.source)
                     this.eventProxies.push(eventProxy)
-                        ; (inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
-                    this.sendPayload({ type: RpcResponseType.event, result: 'ok' } as RpcSuccessPayload, MessageType.ResponseMessage, message.source)
+                    ;(inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
+                    this.sendPayload({ type: RpcResponseType.event, result: 'ok' } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
                 } else
-                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, message.source)
+                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
                 return
             }
 
@@ -92,15 +92,15 @@ export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Me
             let result
             try {
                 result = await handler(...params)
-                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload, MessageType.ResponseMessage, message.source)
+                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
             } catch (e) {
-                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload, MessageType.ErrorMessage, message.source)
+                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
             }
         }
     }
 
     async sendEvent(target: string, event: string, params: unknown[]) {
-        return await this.sendPayload({ event, params } as RpcEventPayload, MessageType.EventMessage)
+        return await this.sendPayload({ event, params } as RpcEventPayload, MessageType.EventMessage, this.name, '*')
     }
 }
 

@@ -1,9 +1,7 @@
 import { io, Socket } from 'socket.io-client'
 import { GenericModule, IGenericModule } from '../Core'
 
-type MsgType = string | ArrayBuffer
-
-export class SocketIoTransport extends GenericModule {
+export class SocketIoTransport extends GenericModule<string | Buffer, unknown, string | Buffer, unknown> {
     socket: Socket
     connected = false
 
@@ -14,9 +12,11 @@ export class SocketIoTransport extends GenericModule {
 
     protected async open(address?: string) {
         this.socket = io(address)
-        this.socket.on('message', async (ev) => {
+        this.socket.on('message', async (message) => {
             try {
-                await this.send(ev.data, this.name)
+                const [header, payload] = this.extractHeader(message)
+                if (header && this.targetExists(header.target))
+                    await this.send(payload, header.source, header.target)
             } catch (e) {
                 console.log('Exception: ', e)
             }
@@ -29,9 +29,9 @@ export class SocketIoTransport extends GenericModule {
         })
         this.readyFlag = true
     }
-    async receive(message: MsgType, target: string) {
+    async receive(message: string | Buffer, source: string, target: string) {
         if (!this.connected)
             await new Promise(res => setTimeout(res, 1000))
-        this.socket.emit('message', message)
+        this.socket.emit('message', this.prependHeader(source, target, message))
     }
 }

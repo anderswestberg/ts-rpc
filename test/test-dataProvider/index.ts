@@ -42,7 +42,7 @@ export class Main {
     this.dataProvider = new DataProvider(collectionDefinitions)
 
     const transport = new SocketIoServer(undefined, 3000, false)
-    const rpc = new RpcServerConnection('app.emellio', transport)
+    const rpc = new RpcServerConnection('app.emellio', [transport])
     rpc.rpcServer.manageRpc.exposeClassInstance(this.dataProvider, 'dataProvider')
     rpc.rpcServer.manageRpc.exposeObject({
       Hello: (arg: string) => {
