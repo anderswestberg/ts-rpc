@@ -1,5 +1,5 @@
-import { MessageModule, Message, MessageType, Payload, GenericModule } from '../Core'
-import { isEventFunction, isPromiseFunction } from './Rpc'
+import { MessageModule, Message, MessageType, GenericModule } from '../Core'
+import { isEventFunction } from './Rpc'
 import { RpcErrorPayload, RpcEventPayload, RpcErrorCode, RpcCallInstanceMethodPayload, RpcRequest, RpcResponse, RpcSuccessPayload, RpcResponseType, RpcRequestType } from './RpcServer'
 import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
@@ -37,6 +37,7 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
         super(name, sources)
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async receive(message: Message<RpcResponse>, target: string) {
         if (isEventMessage(message.payload)) {
             this.eventEmitter.emit(message.payload.event, ...message.payload.params)
@@ -74,12 +75,12 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
             params,
         }
         return new Promise((resolve, reject) => {
-            this.sendPayload(payload, MessageType.RequestMessage, remote).then(value => {
+            this.sendPayload(payload, MessageType.RequestMessage, remote).then(() => {
                 this.responsePromiseMap.set(payload.id, { resolve, reject })
                 setTimeout(() => {
                     reject('Call timeout')
                 }, 10000)
-            }).catch(e => {
+            }).catch(() => {
                 this.responsePromiseMap.delete(payload.id)
             })
         })

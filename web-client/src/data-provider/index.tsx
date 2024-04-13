@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { RpcClientConnection, SocketIoTransport } from '../../../src/index-web';
 
 export class LocalDataProvider {

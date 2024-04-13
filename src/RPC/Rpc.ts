@@ -1,4 +1,3 @@
-import { RpcClientConnection } from "../Utilities/RpcClientConnection"
 
 export interface IManageRpc {
     exposeClassInstance(instance: object, name: string, prototypeSteps?: number): void

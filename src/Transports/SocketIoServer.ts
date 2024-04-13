@@ -29,6 +29,7 @@ export class SocketIoServer extends GenericModule<unknown, unknown, unknown, unk
             this.server = server
         this.readyFlag = true
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async receive(message: unknown, target: string) {
         this.io.emit('message', { data: message })
     }
