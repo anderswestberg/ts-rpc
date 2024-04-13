@@ -1,5 +1,5 @@
-import { SocketIoServer, RpcServerConnection, MqttTransport } from '../../src/index'
-import { ITestRpc } from './ITestRpc'
+import { SocketIoServer, RpcServerConnection, MqttTransport } from '../../src/index.js'
+import { ITestRpc } from './ITestRpc.js'
 import EventEmitter from 'events'
 
 let port = 3000
@@ -13,6 +13,11 @@ export class TestRpc extends EventEmitter implements ITestRpc {
     async add(a: number, b: number) {
         console.log(`TestRpc.add ${a} ${b} base: ${this.base}`)
         return this.base + a + b
+    }
+    async extendBuffer(b: Uint8Array) {
+        const result = new Uint8Array(1000)
+        result.set(b, 10)
+        return result
     }
     triggerEvent() {
         this.emit('hejsan', 1, 2, 3, 4)
@@ -39,7 +44,7 @@ const main = async () => {
 
     // Expose a function
     rpcServerConnection.rpcServer.manageRpc.exposeObject({
-        Hello: (arg: string) => {
+        hello: (arg: string) => {
             console.log(arg)
             return arg + ' world!'
         }

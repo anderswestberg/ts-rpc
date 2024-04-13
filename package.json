@@ -3,6 +3,7 @@
   "version": "0.1.1",
   "description": "TypeScript RPC system",
   "main": "dist/src/index.js",
+  "type": "module",
   "browser": "dist/src/index-web.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -18,10 +19,12 @@
   "author": "Decthings",
   "license": "MIT",
   "dependencies": {
+    "@msgpack/msgpack": "^3.0.0-beta2",
     "@types/node": "^20.12.2",
     "@types/socket.io": "^3.0.2",
     "events": "^3.3.0",
     "socket.io-client": "^4.7.5",
+    "uint8array-extras": "^1.1.0",
     "uuid": "^9.0.1",
     "ws": "^8.16.0"
   },

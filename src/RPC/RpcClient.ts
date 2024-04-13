@@ -1,6 +1,6 @@
-import { MessageModule, Message, MessageType, GenericModule } from '../Core'
-import { isEventFunction } from './Rpc'
-import { RpcErrorPayload, RpcEventPayload, RpcErrorCode, RpcCallInstanceMethodPayload, RpcMessage, RpcSuccessPayload, RpcMessageType } from './RpcServer'
+import { MessageModule, Message, MessageType, GenericModule } from '../Core.js'
+import { isEventFunction } from './Rpc.js'
+import { RpcErrorPayload, RpcEventPayload, RpcErrorCode, RpcCallInstanceMethodPayload, RpcMessage, RpcSuccessPayload, RpcMessageType } from './RpcServer.js'
 import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -100,7 +100,7 @@ export class RpcClient extends MessageModule<Message<RpcMessage>, RpcMessage, Me
                 } else if (typeof (prop) === 'string' && isEventFunction(prop)) {
                     target[prop] = (...args: unknown[]) => {
                         (this.eventEmitter[prop] as (...args: unknown[]) => void)(...args)
-                        return this.call(remote, name, prop, ...args)
+                        return this.call(remote, name, prop, args[0])
                     }
                 } else {
                     target[prop] = (...args: unknown[]) => this.call(remote, name, prop as string, ...args)

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RpcClientConnection, SocketIoTransport } from '../../../src/index-web';
-import { Buffer } from 'buffer'
+import { RpcClientConnection, SocketIoTransport } from '../../../src/index-web.js';
 
 export class LocalDataProvider {
     async getList(
@@ -127,9 +126,6 @@ let rpcConn: RpcClientConnection
 
 export const getDataProvider = async () => {
     let result;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let buf: Buffer
-    
     if (!transport) {
         transport = new SocketIoTransport('http://localhost:3000')
         rpcConn = new RpcClientConnection('app.emellio', transport, 'rpcServer1')

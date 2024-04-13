@@ -1,9 +1,9 @@
 import * as SocketIo from 'socket.io'
 import { createServer as createHttpServer, Server as HttpServer } from 'http'
 import { createServer as createHttpsServer, Server as HttpsServer } from 'https'
-import { GenericModule, IGenericModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core.js'
 
-export class SocketIoServer extends GenericModule<string | Buffer, unknown, string | Buffer, unknown> {
+export class SocketIoServer extends GenericModule<string | Uint8Array, unknown, string | Uint8Array, unknown> {
     closed = false
     io: SocketIo.Server
     server: HttpServer | HttpsServer
@@ -19,7 +19,8 @@ export class SocketIoServer extends GenericModule<string | Buffer, unknown, stri
         })
         this.io.on('connection', (socket) => {
             this.emit('connection', socket)
-            socket.on('message', async message => {
+            socket.on('message', async messageArray => {
+                const message = new Uint8Array(messageArray)
                 const [header, payload] = this.extractHeader(message)
                 if (header && this.targetExists(header.target))
                     await this.send(payload, header.source, header.target)
@@ -32,7 +33,7 @@ export class SocketIoServer extends GenericModule<string | Buffer, unknown, stri
         this.readyFlag = true
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async receive(message: string | Buffer, source: string, target: string) {
+    async receive(message: string | Uint8Array, source: string, target: string) {
         this.io.emit('message', this.prependHeader(source, target, message))
     }
     async close() {

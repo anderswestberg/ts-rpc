@@ -1,12 +1,12 @@
-import { GenericModule } from "../Core"
-import { RpcServer } from "../RPC/RpcServer"
-import { JsonParser, JsonStringifierToBuffer } from "./Converters"
-import { Switch } from "./Switch"
+import { GenericModule } from "../Core.js"
+import { RpcServer } from "../RPC/RpcServer.js"
+import { JsonParser, JsonStringifierToUint8Array, MsgPackDecoder, MsgPackEncoder } from "./Converters.js"
+import { Switch } from "./Switch.js"
 
 export class RpcServerConnection {
     parser: JsonParser
     rpcServer: RpcServer
-    stringifier: JsonStringifierToBuffer<object>
+    stringifier: JsonStringifierToUint8Array<object>
     readyFlag = false
     switch: Switch
     constructor(public name: string, public transports: GenericModule[]) {
@@ -16,9 +16,11 @@ export class RpcServerConnection {
         this.switch.setTarget(transport)
     }
     async init() {
-        this.parser = new JsonParser(this.transports)
+        //this.parser = new JsonParser(this.transports)
+        this.parser = new MsgPackDecoder(this.transports)
         this.rpcServer = new RpcServer(this.name, [this.parser])
-        this.stringifier = new JsonStringifierToBuffer([this.rpcServer])
+        //this.stringifier = new JsonStringifierToUint8Array([this.rpcServer])
+        this.stringifier = new MsgPackEncoder([this.rpcServer])
         this.switch = new Switch([this.stringifier])
         this.switch.setTargets(this.transports)
         this.readyFlag = true

@@ -168,5 +168,5 @@ stringifier.pipe(transport)
 let client = rpcClient.api('MyRpc')
 
 // Should output Hello World!
-console.log('Hello ' + await client.Hello())
+console.log('Hello ' + await client.hello())
 ```

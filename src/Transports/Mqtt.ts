@@ -1,8 +1,8 @@
 import * as mqtt from 'mqtt'
 
-import { GenericModule, IGenericModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core.js'
 
-export class MqttTransport extends GenericModule<string | Buffer, unknown, string | Buffer, unknown> {
+export class MqttTransport extends GenericModule<string | Uint8Array, unknown, string | Uint8Array, unknown> {
     client: mqtt.MqttClient
     connected = false
 
@@ -16,7 +16,8 @@ export class MqttTransport extends GenericModule<string | Buffer, unknown, strin
     }
     async open(address: string) {
         this.client = mqtt.connect(address)
-        this.client.on('message', async (topic, message) => {
+        this.client.on('message', async (topic, messageBuffer) => {
+            const message = new Uint8Array(messageBuffer.buffer, messageBuffer.byteOffset, messageBuffer.byteLength)
             const [header, payload] = this.extractHeader(message)
             if (header && this.targetExists(header.target))
                 await this.send(payload, header.source, header.target)
@@ -30,8 +31,14 @@ export class MqttTransport extends GenericModule<string | Buffer, unknown, strin
         })
         this.readyFlag = true
     }
-    async receive(message: string | Buffer, source: string, target: string) {
-        this.client.publish(this.topicName(target), this.prependHeader(source, target, message))
+    async receive(message: string | Uint8Array, source: string, target: string) {
+        if (typeof message === 'string')
+            this.client.publish(this.topicName(target), this.prependHeader(source, target, message) as string)
+        else {
+            const messageArray = this.prependHeader(source, target, message) as Uint8Array
+            const buffer = Buffer.from(messageArray.buffer, messageArray.byteOffset, messageArray.byteLength)
+            this.client.publish(this.topicName(target), buffer)
+        }
     }
     isTransport() {
         return true

@@ -1,21 +1,23 @@
-import { GenericModule } from "../Core"
-import { IManageRpc } from "../RPC/Rpc"
-import { RpcClient } from "../RPC/RpcClient"
-import { JsonParser, JsonStringifier, JsonStringifierToBuffer } from "./Converters"
+import { GenericModule } from "../Core.js"
+import { IManageRpc } from "../RPC/Rpc.js"
+import { RpcClient } from "../RPC/RpcClient.js"
+import { JsonParser, JsonStringifierToUint8Array, MsgPackDecoder, MsgPackEncoder } from "./Converters.js"
 
 export class RpcClientConnection {
     parser: JsonParser
     rpcClient: RpcClient
-    stringifier: JsonStringifierToBuffer<object>
+    stringifier: JsonStringifierToUint8Array<object>
     manageRpc: IManageRpc
     readyFlag = false
     constructor(public name: string, public transport: GenericModule, public defaultTarget?: string) {
         this.init()
     }
     async init() {
-        this.parser = new JsonParser([this.transport])
+        //this.parser = new JsonParser([this.transport])
+        this.parser = new MsgPackDecoder([this.transport])
         this.rpcClient = new RpcClient(this.name, [this.parser], this.defaultTarget)
-        this.stringifier = new JsonStringifierToBuffer([this.rpcClient])
+        //this.stringifier = new JsonStringifierToUint8Array([this.rpcClient])
+        this.stringifier = new MsgPackEncoder([this.rpcClient])
         this.stringifier.pipe(this.transport)
         this.readyFlag = true
         this.manageRpc = (await this.api('manageRpc')).proxy as IManageRpc

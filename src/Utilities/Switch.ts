@@ -1,4 +1,4 @@
-import { GenericModule, IGenericModule, Message } from '../Core'
+import { GenericModule, IGenericModule, Message } from '../Core.js'
 
 /**
  * Sends received messages to the correct target.

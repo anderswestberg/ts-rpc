@@ -1,13 +1,13 @@
-export * from './Core'
-export * from './Utilities/RpcClientConnection'
+export * from './Core.js'
+export * from './Utilities/RpcClientConnection.js'
 
-export * from './Transports/SocketIo'
+export * from './Transports/SocketIo.js'
 
-export * from './RPC/Rpc'
-export * from './RPC/RpcClient'
-export * from './RPC/RpcServer'
+export * from './RPC/Rpc.js'
+export * from './RPC/RpcClient.js'
+export * from './RPC/RpcServer.js'
 
-export * from './Utilities/Converters'
-export * from './Utilities/Switch'
-export * from './Utilities/Filter'
-export * from './Utilities/TryCatch'
+export * from './Utilities/Converters.js'
+export * from './Utilities/Switch.js'
+export * from './Utilities/Filter.js'
+export * from './Utilities/TryCatch.js'

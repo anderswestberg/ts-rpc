@@ -1,6 +1,5 @@
-import fs from 'fs'
-import { DataProvider } from './DataProvider';
-import { RpcServerConnection, SocketIoServer } from '../../src'
+import { DataProvider } from './DataProvider.js'
+import { RpcServerConnection, SocketIoServer } from '../../src/index.js'
 
 export interface CollectionDefinition {
   name: string
@@ -45,7 +44,7 @@ export class Main {
     const rpc = new RpcServerConnection('app.emellio', [transport])
     rpc.rpcServer.manageRpc.exposeClassInstance(this.dataProvider, 'dataProvider')
     rpc.rpcServer.manageRpc.exposeObject({
-      Hello: (arg: string) => {
+      hello: (arg: string) => {
         console.log(arg)
         return arg + ' World!'
       }

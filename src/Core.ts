@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { stringToUint8Array, uint8ArrayToString } from 'uint8array-extras'
 import { v4 as uuidv4 } from 'uuid'
 
 export const MAX_HEADER_LENGTH = 256
@@ -44,21 +45,21 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
             await new Promise(res => setTimeout(res, 10))
         return true
     }
-    prependHeader(source: string, target: string, message: string | Buffer): string | Buffer {
-        let result: string | Buffer
+    prependHeader(source: string, target: string, message: string | Uint8Array): string | Uint8Array {
+        let result: string | Uint8Array
         const header = { source, target, time: Date.now(), seq: this.seq++ }
         if (typeof message === 'string') {
             result = JSON.stringify(header) + HEADER_DELIMITER + message
         } else {
-            const headerBuffer = Buffer.from(JSON.stringify(header) + HEADER_DELIMITER)
-            result = Buffer.alloc(headerBuffer.length + message.length)
-            headerBuffer.copy(result, 0)
-            message.copy(result, headerBuffer.length)
+            const headerBuffer = stringToUint8Array(JSON.stringify(header) + HEADER_DELIMITER)
+            result = new Uint8Array(headerBuffer.length + message.length)
+            result.set(headerBuffer, 0)
+            result.set(message, headerBuffer.length)
         }
         return result
     }
-    extractHeader(message: string | Buffer): [MessageHeader | undefined, string | Buffer] {
-        let result: [MessageHeader | undefined, string | Buffer]
+    extractHeader(message: string | Uint8Array): [MessageHeader | undefined, string | Uint8Array] {
+        let result: [MessageHeader | undefined, string | Uint8Array]
         if (typeof message === 'string') {
             let header: MessageHeader
             let nullPos = message.indexOf(HEADER_DELIMITER)
@@ -75,7 +76,7 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
             } else
                 nullPos = 0
         } else {
-            const sMessage = message.toString('utf-8', 0, MAX_HEADER_LENGTH - 1)
+            const sMessage = uint8ArrayToString(message.subarray(0, Math.min(MAX_HEADER_LENGTH, message.length)))
             let header: MessageHeader
             let nullPos = sMessage.indexOf(HEADER_DELIMITER)
             if (nullPos > 0) {
@@ -83,8 +84,8 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
                 if (headerText && headerText[0] === '{') {
                     header = JSON.parse(headerText) as MessageHeader
                     if (header.target) {
-                        const payload = Buffer.alloc(message.length - nullPos - HEADER_DELIMITER.length)
-                        message.copy(payload, 0, nullPos + HEADER_DELIMITER.length)
+                        const payload = new Uint8Array(message.length - nullPos - HEADER_DELIMITER.length)
+                        payload.set(message.subarray(nullPos + HEADER_DELIMITER.length))
                         result = [header, payload]
                     } else
                         nullPos = 0
@@ -162,18 +163,12 @@ export interface Payload {
 }
 
 export class Message<P = Payload> {
-    id: string
-    source: string
-    target?: string
     type: MessageType
     payload: P
 }
 
 const makeMessage = <M extends Message<MP>, MP extends Payload>(payload: MP, source: string, target: string, messageType: MessageType): M => {
     const result = new Message()
-    result.id = uuidv4()
-    result.source = source
-    result.target = target
     result.type = messageType ? messageType : MessageType.UnknownMessage
     result.payload = payload
     return result as M

@@ -1,4 +1,4 @@
-import { GenericModule, IGenericModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core.js'
 
 export class Filter<MsgType = unknown> extends GenericModule {
     constructor(name: string, sources: IGenericModule[], public filter: (msg: MsgType) => boolean) {

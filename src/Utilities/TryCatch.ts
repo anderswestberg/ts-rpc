@@ -1,4 +1,4 @@
-import { GenericModule, IGenericModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core.js'
 
 export interface ITryCatch<MsgType = unknown> {
     on(event: 'caught', handler: (message: MsgType, error: unknown) => void): this
@@ -11,6 +11,6 @@ export class TryCatch extends GenericModule implements ITryCatch<unknown> {
         super(undefined, sources)
     }
     async receive(message: unknown, source: string, target: string) {
-        const p = this.send(message, source, target).then().catch(e => this.emit('Caught exception', message, e))
+        this.send(message, source, target).then().catch(e => this.emit('Caught exception', message, e))
     }
 }

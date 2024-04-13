@@ -1,8 +1,8 @@
-import { MessageModule, Message, MessageType, Payload, GenericModule } from '../Core'
+import { MessageModule, Message, MessageType, Payload, GenericModule } from '../Core.js'
 import { v4 as uuidv4 } from 'uuid'
-import { IManageRpc } from './Rpc'
+import { IManageRpc } from './Rpc.js'
 import EventEmitter from 'events'
-import { RpcClientConnection } from '../Utilities/RpcClientConnection'
+import { RpcClientConnection } from '../Utilities/RpcClientConnection.js'
 
 export enum RpcMessageType { CallInstanceMethod = 'POST', success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
@@ -46,7 +46,7 @@ const isRpcCallInstanceMethodPayload = (payload: RpcMessage): payload is RpcCall
 
 export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> {
     manageRpc = new ManageRpc()
-    eventProxies: EventProxy[] = []
+    eventProxies = new Map<string, EventProxy>()
 
     constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
         super(name, sources)
@@ -61,12 +61,19 @@ export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Me
             const map = this.manageRpc.getNameSpaceMethodMap(payload.path)
             const handler = map.get(payload.method)
             if (!handler) {
-                const inst = this.manageRpc.exposedNameSpaceInstances[payload.path]
+                const instanceName = payload.path
+                const event = payload.params[0] as string
+                const inst = this.manageRpc.exposedNameSpaceInstances[instanceName]
                 if (payload.method === 'on' && inst instanceof EventEmitter) {
-                    const eventProxy = new EventProxy(this, inst, payload.params[0] as string, source)
-                    this.eventProxies.push(eventProxy)
-                    ;(inst as EventEmitter).on(payload.params[0] as string, eventProxy.on.bind(eventProxy))
-                    this.sendPayload({ type: RpcMessageType.success, result: 'ok', id: payload.id } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
+                    const eventKey = JSON.stringify({ instanceName, event, source })
+                    let eventProxy = this.eventProxies.get(eventKey)
+                    if (!eventProxy) {
+                        eventProxy = new EventProxy(this, inst, event, source)
+                        this.eventProxies.set(eventKey, eventProxy)
+                        ;(inst as EventEmitter).on(event, eventProxy.on.bind(eventProxy))
+                        this.sendPayload({ type: RpcMessageType.success, result: 'ok', id: payload.id } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
+                    } else
+                        this.sendPayload({ type: RpcMessageType.success, result: 'ok - already exists', id: payload.id } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
                 } else
                     this.sendPayload({ type: RpcMessageType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
                 return

@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { LocalDataProvider } from './data-provider'
-import { getDataProvider } from './data-provider'
-import { Buffer } from 'buffer'
+import { getDataProvider, LocalDataProvider } from './data-provider/index.js'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -19,8 +17,6 @@ function App() {
   }, [])
   useEffect(() => {
     (async () => {
-      const buf = Buffer.from('abc')
-      console.log(buf)
       const res = await dataProvider?.getList('project', { hej: 'svejs'})
       if (res?.value)
         setReply(res.value)
