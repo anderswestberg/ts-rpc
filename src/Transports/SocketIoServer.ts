@@ -44,4 +44,7 @@ export class SocketIoServer extends GenericModule<string | Buffer, unknown, stri
         await new Promise(res => setTimeout(res, 1000))
         this.io.close()
     }
+    isTransport() {
+        return true
+    }
 }

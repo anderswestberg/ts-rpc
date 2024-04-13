@@ -12,11 +12,13 @@ export class Switch extends GenericModule {
         super(undefined, sources)
     }
     async receive(message: Message, source: string, target: string) {
-        let switchTarget = this.targets.get(target)
-        if (!switchTarget && this.getTarget)
+        let switchTarget: IGenericModule
+        if (this.getTarget)
             switchTarget = this.getTarget(target)
         if (!switchTarget)
             switchTarget = this.targetExists(target)
+        if (!switchTarget)
+            switchTarget = super.targetExists(target)
         if (switchTarget)
             await switchTarget.receive(message, source, target)
         return
@@ -47,23 +49,14 @@ export class Switch extends GenericModule {
         for (const target of targets)
             this.setTarget(target)
     }
-    public targetPiper(target: string): IGenericModule {
-        return {
-            pipe: (mod: IGenericModule) => {
-                return this.setTarget(mod, target)
-            }
-        } as any
-    }
     targetExists(name: string, level: number = 0) {
-        if (level > 10)
+        if (level > 5)
             console.log('Ooops')
-        let result: IGenericModule = super.targetExists(name, level + 1)
-        if (!result) {
-            this.targets.forEach(target => {
-                if (!result && target.targetExists(name, level + 1))
-                    result = target
-            })
-        }
+        let result: IGenericModule
+        this.targets.forEach(target => {
+            if (!result && !target.isTransport() && target.targetExists(name, level + 1))
+                result = target
+        })
         return result
     }
 }

@@ -21,7 +21,7 @@ export class TestRpc extends EventEmitter implements ITestRpc {
 
 const main = async () => {
 
-    let name = 'rpcServer1';
+    let name = 'rpcServer1'
     if (port !== 3000)
         name = 'rpcServer2'
     const transport = new SocketIoServer(undefined, port, false, [], name)
@@ -34,7 +34,7 @@ const main = async () => {
     rpcServerConnection.rpcServer.manageRpc.exposeObject({
         Hello: (arg: string) => {
             console.log(arg)
-            return arg + ' World!'
+            return arg + ' world!'
         }
     }, 'MyRpc')
 

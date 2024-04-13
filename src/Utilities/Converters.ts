@@ -1,4 +1,4 @@
-import { Message, GenericModule, IGenericModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core'
 
 /**
  * Converts a message using a callback function.

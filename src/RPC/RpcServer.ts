@@ -4,13 +4,13 @@ import { IManageRpc } from './Rpc'
 import EventEmitter from 'events'
 import { RpcClientConnection } from '../Utilities/RpcClientConnection'
 
-export enum RpcRequestType { CallInstanceMethod = 'POST' }
+export enum RpcMessageType { CallInstanceMethod = 'POST', success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
-export interface RpcRequest {
-    type: RpcRequestType
+export interface RpcMessage extends Payload {
+    type: RpcMessageType
 }
 
-export interface RpcCallInstanceMethodPayload extends RpcRequest {
+export interface RpcCallInstanceMethodPayload extends RpcMessage {
     id: string
     path: string
     method: string
@@ -19,21 +19,15 @@ export interface RpcCallInstanceMethodPayload extends RpcRequest {
 
 export type RpcErrorCode = 'ClassNotFound' | 'MethodNotFound' | 'Exception'
 
-export enum RpcResponseType { success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
-
-export interface RpcResponse extends Payload {
-    type: RpcResponseType
-}
-
-export interface RpcErrorPayload extends RpcResponse {
+export interface RpcErrorPayload extends RpcMessage {
     code: RpcErrorCode,
     exception?: unknown
 }
-export interface RpcSuccessPayload extends RpcResponse {
+export interface RpcSuccessPayload extends RpcMessage {
     id: string
     result: unknown
 }
-export interface RpcEventPayload extends RpcResponse {
+export interface RpcEventPayload extends RpcMessage {
     event: string
     params: unknown[]
 }
@@ -46,62 +40,52 @@ class EventProxy {
     }
 }
 
-const isRpcCallInstanceMethodPayload = (payload: RpcRequest): payload is RpcCallInstanceMethodPayload => {
-    return (payload.type === RpcRequestType.CallInstanceMethod)
+const isRpcCallInstanceMethodPayload = (payload: RpcMessage): payload is RpcCallInstanceMethodPayload => {
+    return (payload.type === RpcMessageType.CallInstanceMethod)
 }
 
-export class RpcServer extends MessageModule<Message<RpcRequest>, RpcRequest, Message<RpcResponse>, RpcResponse> {
+export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> {
     manageRpc = new ManageRpc()
     eventProxies: EventProxy[] = []
 
-    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcRequest>[]) {
+    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
         super(name, sources)
     }
 
-    async receive(message: Message<RpcRequest>, source: string, target: string) {
-        if (isRpcCallInstanceMethodPayload(message.payload)) {
-            const map = this.manageRpc.getNameSpaceMethodMap(message.payload.path)
-            const handler = map.get(message.payload.method)
+    async receive(message: Message<RpcMessage>, source: string, target: string) {
+        this.receivePayload(message.payload, source, target)
+    }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async receivePayload(payload: RpcMessage, source: string, target: string) {
+        if (isRpcCallInstanceMethodPayload(payload)) {
+            const map = this.manageRpc.getNameSpaceMethodMap(payload.path)
+            const handler = map.get(payload.method)
             if (!handler) {
-                const inst = this.manageRpc.exposedNameSpaceInstances[message.payload.path]
-                if (message.payload.method === 'on' && inst instanceof EventEmitter) {
-                    const eventProxy = new EventProxy(this, inst, message.payload.params[0] as string, message.source)
+                const inst = this.manageRpc.exposedNameSpaceInstances[payload.path]
+                if (payload.method === 'on' && inst instanceof EventEmitter) {
+                    const eventProxy = new EventProxy(this, inst, payload.params[0] as string, source)
                     this.eventProxies.push(eventProxy)
-                    ;(inst as EventEmitter).on(message.payload.params[0] as string, eventProxy.on.bind(eventProxy))
-                    this.sendPayload({ type: RpcResponseType.success, result: 'ok', id: message.payload.id } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
+                    ;(inst as EventEmitter).on(payload.params[0] as string, eventProxy.on.bind(eventProxy))
+                    this.sendPayload({ type: RpcMessageType.success, result: 'ok', id: payload.id } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
                 } else
-                    this.sendPayload({ type: RpcResponseType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
+                    this.sendPayload({ type: RpcMessageType.error, code: 'MethodNotFound' } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
                 return
             }
 
-            const params = [...message.payload.params]
-
-            if (message.source !== undefined) {
-                params.push(message.source)
-            }
+            const params = [...payload.params]
             let result
             try {
                 result = await handler(...params)
-                this.sendPayload({ type: RpcResponseType.success, id: message.payload.id, result } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
+                this.sendPayload({ type: RpcMessageType.success, id: payload.id, result } as RpcSuccessPayload, MessageType.ResponseMessage, this.name, source)
             } catch (e) {
-                this.sendPayload({ type: RpcResponseType.error, code: 'Exception', exception: e } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
+                this.sendPayload({ type: RpcMessageType.error, code: 'Exception', exception: e } as RpcErrorPayload, MessageType.ErrorMessage, this.name, source)
             }
         }
     }
 
     async sendEvent(target: string, event: string, params: unknown[]) {
-        return await this.sendPayload({ event, params } as RpcEventPayload, MessageType.EventMessage, this.name, '*')
+        return await this.sendPayload({ type: RpcMessageType.event, event, params } as RpcEventPayload, MessageType.EventMessage, this.name, target)
     }
-}
-
-const parseDeclaration = (declaration: string) => {
-    let typeName = declaration
-    let instanceName = ''
-    if (declaration.indexOf(':') > 0) {
-        typeName = (declaration.split(':')[1]).trim()
-        instanceName = (declaration.split(':')[0]).trim()
-    }
-    return [instanceName, typeName]
 }
 
 export const createInstance = (className: string, ...args: unknown[]): object => {
@@ -140,12 +124,10 @@ export class ManageRpc implements IManageRpc {
         // Iterate upwards to find all the methods within the prototype chain.
         let props = Object.getOwnPropertyNames(instance.constructor.prototype)
         let parent = Object.getPrototypeOf(instance.constructor.prototype)
-        let prototypeCounter = 0
         while (parent && parent.constructor.name !== 'Object' && parent.constructor.name !== 'EventEmitter') {
             const parentProps = Object.getOwnPropertyNames(parent)
             props = props.concat(parentProps)
             parent = Object.getPrototypeOf(parent)
-            prototypeCounter++
         }
         // All methods was found.
         const map = this.getNameSpaceMethodMap(name)

@@ -12,6 +12,6 @@ module.exports = {
   plugins: [],
   rules: {
     "semi": "off",
-    "@typescript-eslint/semi": [on, "error"]
+    "@typescript-eslint/semi": ["error", "never"]
   },
 }

@@ -7,11 +7,13 @@ export const HEADER_DELIMITER = '$'
 export interface IGenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown> {
     pipe(target: IGenericModule)
     receive(message: I, source: string, target: string): Promise<void>
+    receivePayload(payload: IP, source: string, target: string): Promise<void>
     send(message: O, source: string, target: string): Promise<void>
     sendPayload(payload: OP, messageType: MessageType, source: string, target: string): Promise<void>
     ready(): Promise<boolean>
     getName(): string
     targetExists(name: string, level?: number): IGenericModule
+    isTransport(): boolean
 }
 
 export interface MessageHeader {
@@ -73,7 +75,7 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
             } else
                 nullPos = 0
         } else {
-            let sMessage = message.toString('utf-8', 0, MAX_HEADER_LENGTH - 1)
+            const sMessage = message.toString('utf-8', 0, MAX_HEADER_LENGTH - 1)
             let header: MessageHeader
             let nullPos = sMessage.indexOf(HEADER_DELIMITER)
             if (nullPos > 0) {
@@ -101,16 +103,18 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
     }
 
     targetExists(name: string, level: number = 0) {
-        if (level > 10)
+        if (level > 5)
             console.log('Ooops')
         let result: IGenericModule
-        if (this.name === name)
+        if (this.name === name) {
+            // eslint-disable-next-line @typescript-eslint/no-this-alias
             result = this
+        }
         if (GenericModule.knownSources[name])
             result = GenericModule.knownSources[name]
         if (!result) {
             this.destinations.map(dest => {
-                if (!result && dest.target.targetExists(name, level + 1))
+                if (!result && !dest.target.isTransport() && dest.target.targetExists(name, level + 1))
                     result = dest.target
             })
         }
@@ -124,7 +128,13 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async receive(message: I, source: string, target: string) {
+        return
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async receivePayload(message: IP, source: string, target: string) {
         return
     }
 
@@ -138,7 +148,11 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
     setKnownSource(source: string) {
         GenericModule.knownSources[source] = this
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async sendPayload(payload: OP, messageType: MessageType, source: string, target: string) {
+    }
+    isTransport() {
+        return false
     }
 }
 
@@ -185,6 +199,7 @@ export class MessageModule<I extends Message<IP>, IP extends Payload, O extends 
         }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     receive(message: I, source: string, target: string): Promise<void> {
         return Promise.resolve()
     }

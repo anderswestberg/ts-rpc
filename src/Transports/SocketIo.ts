@@ -34,4 +34,7 @@ export class SocketIoTransport extends GenericModule<string | Buffer, unknown, s
             await new Promise(res => setTimeout(res, 1000))
         this.socket.emit('message', this.prependHeader(source, target, message))
     }
+    isTransport() {
+        return true
+    }
 }

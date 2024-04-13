@@ -1,4 +1,4 @@
-import { GenericModule, IGenericModule, MessageModule } from '../Core'
+import { GenericModule, IGenericModule } from '../Core'
 
 /**
  * Filters message to only send along accepted messages.

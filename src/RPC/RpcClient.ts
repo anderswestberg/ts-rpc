@@ -1,6 +1,6 @@
 import { MessageModule, Message, MessageType, GenericModule } from '../Core'
 import { isEventFunction } from './Rpc'
-import { RpcErrorPayload, RpcEventPayload, RpcErrorCode, RpcCallInstanceMethodPayload, RpcRequest, RpcResponse, RpcSuccessPayload, RpcResponseType, RpcRequestType } from './RpcServer'
+import { RpcErrorPayload, RpcEventPayload, RpcErrorCode, RpcCallInstanceMethodPayload, RpcMessage, RpcSuccessPayload, RpcMessageType } from './RpcServer'
 import { EventEmitter } from 'events'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -10,35 +10,35 @@ export class RpcError extends Error {
     }
 }
 
-export interface RpcClientEmitter extends MessageModule<Message<RpcResponse>, RpcResponse, Message<RpcRequest>, RpcRequest> {
+export interface RpcClientEmitter extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> {
     on(event: string, handler: (_event: string, params: unknown[]) => void): this
     emit(event: string, params: unknown[]): boolean
     removeListener(event: string, handler: (params: unknown[]) => void): this
 }
 
-function isSuccessResponse(payload: RpcResponse): payload is RpcSuccessPayload {
-    return payload.type === RpcResponseType.success
+function isSuccessResponse(payload: RpcMessage): payload is RpcSuccessPayload {
+    return payload.type === RpcMessageType.success
 }
 
-function isEventMessage(payload: RpcResponse): payload is RpcEventPayload {
-    return payload.type === RpcResponseType.event
+function isEventMessage(payload: RpcMessage): payload is RpcEventPayload {
+    return payload.type === RpcMessageType.event
 }
 
-function isErrorResponse(payload: RpcResponse): payload is RpcErrorPayload {
-    return payload.type === RpcResponseType.error
+function isErrorResponse(payload: RpcMessage): payload is RpcErrorPayload {
+    return payload.type === RpcMessageType.error
 }
 
 export type PromiseResolver<T> = { resolve: (result: T) => void; reject: (reason?: unknown) => void }
 
-export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, Message<RpcRequest>, RpcRequest> implements RpcClientEmitter {
+export class RpcClient extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> implements RpcClientEmitter {
     responsePromiseMap = new Map<string, PromiseResolver<unknown>>()
     eventEmitter = new EventEmitter()
-    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcResponse>[], public target?: string | string[]) {
+    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[], public target?: string | string[]) {
         super(name, sources)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async receive(message: Message<RpcResponse>, target: string) {
+    async receive(message: Message<RpcMessage>, target: string) {
         if (isEventMessage(message.payload)) {
             this.eventEmitter.emit(message.payload.event, ...message.payload.params)
             this.emit(message.payload.event, message.payload.params)
@@ -69,7 +69,7 @@ export class RpcClient extends MessageModule<Message<RpcResponse>, RpcResponse, 
     public call(remote: string, instanceName: string, method: string, ...params: unknown[]): Promise<unknown> {
         const payload: RpcCallInstanceMethodPayload = {
             id: uuidv4(),
-            type: RpcRequestType.CallInstanceMethod,
+            type: RpcMessageType.CallInstanceMethod,
             path: instanceName,
             method,
             params,

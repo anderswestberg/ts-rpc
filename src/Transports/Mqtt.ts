@@ -33,4 +33,7 @@ export class MqttTransport extends GenericModule<string | Buffer, unknown, strin
     async receive(message: string | Buffer, source: string, target: string) {
         this.client.publish(this.topicName(target), this.prependHeader(source, target, message))
     }
+    isTransport() {
+        return true
+    }
 }
