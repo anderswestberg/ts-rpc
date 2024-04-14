@@ -8,7 +8,9 @@
     "sourceMap": true,
     "inlineSources": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "exclude": ["./dist", "./web-client"]
+  "exclude": ["./dist", "./web-client", "./node_modules"]
 }

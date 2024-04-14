@@ -2,7 +2,6 @@ import { MessageModule, Message, MessageType, Payload, GenericModule } from '../
 import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc.js'
 import EventEmitter from 'events'
-import { RpcClientConnection } from '../Utilities/RpcClientConnection.js'
 
 export enum RpcMessageType { CallInstanceMethod = 'POST', success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
@@ -46,7 +45,7 @@ const isRpcCallInstanceMethodPayload = (payload: RpcMessage): payload is RpcCall
 
 export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> {
     manageRpc = new ManageRpc()
-    eventProxies = new Map<string, EventProxy>()
+    eventProxies = new Map<{ instanceName: string, event: string, source: string }, EventProxy>()
 
     constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
         super(name, sources)
@@ -65,7 +64,7 @@ export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Me
                 const event = payload.params[0] as string
                 const inst = this.manageRpc.exposedNameSpaceInstances[instanceName]
                 if (payload.method === 'on' && inst instanceof EventEmitter) {
-                    const eventKey = JSON.stringify({ instanceName, event, source })
+                    const eventKey = { instanceName, event, source }
                     let eventProxy = this.eventProxies.get(eventKey)
                     if (!eventProxy) {
                         eventProxy = new EventProxy(this, inst, event, source)
@@ -113,7 +112,6 @@ export class ManageRpc implements IManageRpc {
     exposedNameSpaceInstances: { [nameSpace: string]: object } = {}
     exposedClasses: { [className: string]: new (...args: unknown[]) => unknown } = {}
     createdInstances = new Map<string, object>()
-    rpcClientConnections: { [url: string]: RpcClientConnection } = {}
     constructor() {
         this.exposeClassInstance(this, ManageRpc.name.charAt(0).toLowerCase() + ManageRpc.name.slice(1))
     }

@@ -1,3 +1,4 @@
+import { HttpRpcServer } from '../../src/Utilities/HttpRpcServer.js'
 import { SocketIoServer, RpcServerConnection, MqttTransport } from '../../src/index.js'
 import { ITestRpc } from './ITestRpc.js'
 import EventEmitter from 'events'
@@ -33,9 +34,7 @@ export class DataProvider {
 
 const main = async () => {
 
-    let name = 'rpcServer1'
-    if (port !== 3000)
-        name = 'rpcServer2'
+    const name = 'rpcServer1'
     const transport = new SocketIoServer(undefined, port, false, [], name)
     const transport2 = new MqttTransport(true, 'mqtt://localhost:1883', name)
     const testRpc = new TestRpc(10)
@@ -54,6 +53,8 @@ const main = async () => {
     rpcServerConnection.rpcServer.manageRpc.exposeClass(TestRpc)
     const dataProvider = new DataProvider()
     rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
+
+    const httpServer = new HttpRpcServer(rpcServerConnection.rpcServer)
 
     /*
     server.listen(port, () => {
