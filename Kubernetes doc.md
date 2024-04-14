@@ -1,5 +1,11 @@
 # Using Kubernetes
 
+## Running Minikube on Debian
+
+minikube start
+eval $(minikube docker-env)
+kubectl apply -f k8s
+
 ## Install Minikube on Debian
 
 ---------------
