@@ -36,34 +36,43 @@ const main = async () => {
     let name = 'rpcServer1'
     if (port !== 3000)
         name = 'rpcServer2'
-    const transport = new SocketIoServer(undefined, port, false, [], name)
-    const transport2 = new MqttTransport(true, 'mqtt://localhost:1883', name)
-    const testRpc = new TestRpc(10)
-
-    const rpcServerConnection = new RpcServerConnection(name, [transport, transport2])
-
-    // Expose a function
-    rpcServerConnection.rpcServer.manageRpc.exposeObject({
-        hello: (arg: string) => {
-            console.log(arg)
-            return arg + ' world!'
-        }
-    }, 'MyRpc')
-
-    rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
-    rpcServerConnection.rpcServer.manageRpc.exposeClass(TestRpc)
-    const dataProvider = new DataProvider()
-    rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
-
-    /*
-    server.listen(port, () => {
-        console.log(`Server listening on port ${port}`);
-    });    */
-
     for (; ;) {
+        try {
+            const transport = new SocketIoServer(undefined, port, false, [], name)
+            const transport2 = new MqttTransport(true, 'mqtt://emqx-service:1883', name)
+            //const transport2 = new MqttTransport(true, 'mqtt://localhost:1883', name)
+            const testRpc = new TestRpc(10)
+
+            const rpcServerConnection = new RpcServerConnection(name, [transport, transport2])
+
+            // Expose a function
+            rpcServerConnection.rpcServer.manageRpc.exposeObject({
+                hello: (arg: string) => {
+                    console.log(arg)
+                    return arg + ' world!'
+                }
+            }, 'MyRpc')
+
+            rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
+            rpcServerConnection.rpcServer.manageRpc.exposeClass(TestRpc)
+            const dataProvider = new DataProvider()
+            rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
+
+            /*
+            server.listen(port, () => {
+                console.log(`Server listening on port ${port}`);
+            });    */
+
+            for (; ;) {
+                await new Promise(res => setTimeout(res, 5000))
+                testRpc.emit('hejsan', 1, 2, 5)
+                testRpc.emit('svejsan', Math.PI)
+            }
+        } catch (e) {
+
+            console.log(e)
+        }
         await new Promise(res => setTimeout(res, 5000))
-        testRpc.emit('hejsan', 1, 2, 5)
-        testRpc.emit('svejsan', Math.PI)
     }
 }
 
