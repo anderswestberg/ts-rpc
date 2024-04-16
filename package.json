@@ -31,6 +31,7 @@
   },
   "peerDependencies": {
     "mqtt": "^5.5.0",
+    "seq-logging": "^2.2.0",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

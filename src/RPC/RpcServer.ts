@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc.js'
 import EventEmitter from 'events'
 import { RpcClientConnection } from '../Utilities/RpcClientConnection.js'
+import { SeqLogger } from '../Logging/SeqLogger.js'
 
 export enum RpcMessageType { CallInstanceMethod = 'POST', success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
@@ -50,9 +51,11 @@ export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Me
 
     constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
         super(name, sources)
+        this.manageRpc.seqLogger.log('Information', 'RpcServer {name} starting', { name })
     }
 
     async receive(message: Message<RpcMessage>, source: string, target: string) {
+        this.manageRpc.seqLogger.log('Debug', 'RpcServer {name} received message type {type} from {source} to {target}: {message}', { name: this.name, type: message.type, source, target, message: JSON.stringify(message) })
         this.receivePayload(message.payload, source, target)
     }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -114,8 +117,11 @@ export class ManageRpc implements IManageRpc {
     exposedClasses: { [className: string]: new (...args: unknown[]) => unknown } = {}
     createdInstances = new Map<string, object>()
     rpcClientConnections: { [url: string]: RpcClientConnection } = {}
+    seqLogger: SeqLogger
     constructor() {
         this.exposeClassInstance(this, ManageRpc.name.charAt(0).toLowerCase() + ManageRpc.name.slice(1))
+        this.seqLogger = new SeqLogger()
+        this.exposeClassInstance(this.seqLogger, SeqLogger.name.charAt(0).toLowerCase() + SeqLogger.name.slice(1))
     }
     getNameSpaceMethodMap(name: string) {
         let result = this.exposedNameSpaceMethodMaps[name]

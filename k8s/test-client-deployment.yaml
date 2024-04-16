@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: ts-rpc-client
-          image: ts-rpc-client
-          imagePullPolicy: IfNotPresent
+          image: anderswestberg/ts-rpc-client
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           resources:
