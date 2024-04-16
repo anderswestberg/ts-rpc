@@ -65,6 +65,7 @@ const main = async () => {
 
             for (; ;) {
                 await new Promise(res => setTimeout(res, 5000))
+                rpcServerConnection.rpcServer.manageRpc.seqLogger.log('Information', 'Hello')
                 testRpc.emit('hejsan', 1, 2, 5)
                 testRpc.emit('svejsan', Math.PI)
             }

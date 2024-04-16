@@ -120,7 +120,7 @@ export class ManageRpc implements IManageRpc {
     seqLogger: SeqLogger
     constructor() {
         this.exposeClassInstance(this, ManageRpc.name.charAt(0).toLowerCase() + ManageRpc.name.slice(1))
-        this.seqLogger = new SeqLogger()
+        this.seqLogger = new SeqLogger(`http://${process.env.SEQ_LOGGER}:5341`)
         this.exposeClassInstance(this.seqLogger, SeqLogger.name.charAt(0).toLowerCase() + SeqLogger.name.slice(1))
     }
     getNameSpaceMethodMap(name: string) {
