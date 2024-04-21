@@ -32,7 +32,10 @@
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "SEQ_LOGGER": "localhost"
+            }
         },
         {
             "name": "Test Client",

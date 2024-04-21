@@ -6,6 +6,7 @@
   "type": "module",
   "browser": "dist/src/index-web.js",
   "scripts": {
+    "build": "tsc --build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepack": "rimraf ./dist && tsc"
   },
@@ -31,6 +32,7 @@
   "peerDependencies": {
     "express": "^4.19.2",
     "mqtt": "^5.5.0",
+    "seq-logging": "^2.2.0",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
