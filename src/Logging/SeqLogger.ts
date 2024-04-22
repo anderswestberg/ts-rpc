@@ -1,16 +1,18 @@
-import { Logger, SeqLogLevel } from 'seq-logging'
+import { Logger, SeqLogLevel, SeqLoggerConfig } from 'seq-logging'
 export { SeqLogLevel }
 
 export class SeqLogger {
     protected logger: Logger
     constructor(public serverUrl: string = 'http://seq:5341', public apiKey?: string) {
-        this.logger = new Logger({
+        const options: SeqLoggerConfig = {
             serverUrl,
-            apiKey,
             onError: (e) => {
                 console.error('Failed to log to Seq!', e)
             }
-        })
+        }
+        if (apiKey)
+            options.apiKey = apiKey
+        this.logger = new Logger(options)
     }
     log(level: SeqLogLevel, messageTemplate: string, properties?: { [key: string]: unknown }) {
         this.logger.emit({

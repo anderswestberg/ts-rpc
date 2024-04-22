@@ -18,7 +18,11 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "type": "node"
+            "type": "node",
+            "env": {
+                "SEQ_LOGGER": "localhost",
+                "SEQ_API_KEY": "lx9nIkLTGXe6lHzAUJqH"
+            }
         },
         {
             "type": "node",

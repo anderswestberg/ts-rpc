@@ -1,53 +1,53 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { CreateParams, DeleteManyParams, DeleteParams, GetListParams, GetListResult, GetManyParams, GetManyReferenceParams, GetManyReferenceResult, GetOneParams, IDataProvider, Identifier, RaRecord, UpdateManyParams, UpdateParams } from "./DataProviderTypes.js"
 import { CollectionDefinition } from "./index.js"
-import Datastore from '@seald-io/nedb'
+import { Collection, MongoClient, Document, ObjectId } from 'mongodb'
 
-export interface GetListParams {
-    pagination: { page: number, perPage: number };
-    sort: { field: string, order: 'ASC' | 'DESC' };
-    filter: any;
-    meta?: any;
-}
+const url = 'mongodb://localhost:27017'
 
-export interface GetListResult {
-    data: any[];
-    total?: number;
-    // if using partial pagination
-    pageInfo?: {
-        hasNextPage?: boolean;
-        hasPreviousPage?: boolean;
-    };
-}
-
-export class DataProvider {
-    dbs: { [resource: string]: Datastore } = {}
+export class DataProvider implements IDataProvider {
+    dbs: { [resource: string]: Collection<Document> } = {}
+    readyFlag = false
     constructor(public collectionDefinition: CollectionDefinition[]) {
-        for (const resource of collectionDefinition) {
-            this.dbs[resource.name] = new Datastore({ filename: `${resource.name}-store.json`, autoload: true })
-        }
         this.init()
     }
-    async init() {
-        for (const resource of this.collectionDefinition) {
-            await this.dbs[resource.name].findAsync({})
+    async waitReady() {
+        for (; !this.readyFlag;) {
+            await new Promise(res => setTimeout(res, 1000))
         }
     }
-    async getList(resource: string, params: GetListParams) {
-        let from = 0
-        let to = 10
-        if (params?.pagination) {
-            from = (params.pagination.page - 1) * params.pagination.perPage
-            to = from + params.pagination.perPage - 1
+    async init() {
+        const client = new MongoClient(url)
+        const dbName = 'myProject'
+        await client.connect()
+        console.log('Connected successfully to server')
+        const db = client.db(dbName)
+        for (const resource of this.collectionDefinition) {
+            this.dbs[resource.name] = db.collection(resource.name)
         }
-        const sort: string[] = []
+        this.readyFlag = true
+    }
+    async getList<RecordType extends RaRecord = any>(resource: string, params: GetListParams): Promise<GetListResult<RecordType>> {
+        const result = await this.getListByField(resource, { id: undefined, target: 'id', ...params })
+        return { data: result.data, total: result.total }
+    }
+    async getListByField<RecordType extends RaRecord = any>(resource: string, params: GetManyReferenceParams): Promise<GetManyReferenceResult<RecordType>> {
+        const target = (params.target === 'id') ? '_id' : params.target
+        let from = 0
+        let to = 0
+        if (params?.pagination && params.pagination.page >= 1) {
+            from = (params.pagination.page - 1) * params.pagination.perPage
+            to = from + params.pagination.perPage
+        }
         let sortField
         let sortOrder
-        if (params?.pagination) {
+        if (params?.sort) {
             sortField = params.sort.field
             sortOrder = params.sort.order
         }
         const filter = params.filter
-        let query = filter as any
+        let query = filter ? filter : {}
         if (query?.q) {
             let q = query.q.replace(
                 /&&/g,
@@ -97,12 +97,17 @@ export class DataProvider {
                 query[prop] = new RegExp(query[prop], 'i')
             }
         }
-        const total = await this.dbs[resource].countAsync(query)
+        if (params.id) {
+            query[target] = new ObjectId(params.id)
+        }
+        const total = await this.dbs[resource].countDocuments(query)
         let cursor = this.dbs[resource].find(query)
-        cursor = cursor
-            .skip(from)
-            .limit(to - from)
-        if (sort) {
+        if (from !== to) {
+            cursor = cursor
+                .skip(from)
+                .limit(to - from)
+        }
+        if (sortField && sortOrder) {
             cursor = cursor.sort({
                 [sortField!]:
                     sortOrder === 'ASC'
@@ -110,29 +115,83 @@ export class DataProvider {
                         : -1,
             })
         }
-        const data = await cursor
-        return { data, total }
+        const data = this.toReactAdmin(await cursor.toArray())
+        const pageInfo = {
+            hasNextPage: to < total,
+            hasPreviousPage: from > 1
+        }
+        return { data, total, pageInfo }
     }
-    toId(data: any) {
+    async getOne<RecordType extends RaRecord<Identifier> = any>(resource: string, params: GetOneParams<RecordType>) {
+        const cursor = this.dbs[resource].find({ _id: ObjectId.createFromHexString(params.id as string) })
+        const data = await cursor.toArray()
+        const resultData = (data.length === 1) ? data[0] : null
+        return { data: data[0] as unknown as RecordType }
+    }
+    async getMany<RecordType extends RaRecord<Identifier> = any>(resource: string, params: GetManyParams) {
+        const ids = params.ids.map(id => ObjectId.createFromHexString(id as string))
+        const cursor = this.dbs[resource].find({ _id: { $in: ids } })
+        let data = await cursor.toArray() as unknown as RecordType[]
+        data = this.toReactAdmin(data)
+        return { data }
+    }
+    async getManyReference<RecordType extends RaRecord<Identifier> = any>(resource: string, params: GetManyReferenceParams) {
+        const result = await this.getListByField(resource, params)
+        return result
+    }
+    async update<RecordType extends RaRecord<Identifier> = any>(resource: string, params: UpdateParams<any>) {
+        const updateResult = await this.dbs[resource].updateOne({ _id: ObjectId.createFromHexString(params.id as string) }, params.data)
+        let data
+        if (updateResult.modifiedCount === 1)
+            data = params.data
+        return { data: data as RecordType }
+    }
+    async updateMany<RecordType extends RaRecord<Identifier> = any>(resource: string, params: UpdateManyParams<any>) {
+        const sampleId: RecordType['id'] = ''
+        const data: RecordType['id'][] = [sampleId]
+        return { data }
+    }
+    async create<RecordType extends Omit<RaRecord<Identifier>, "id"> = any, ResultRecordType extends RaRecord<Identifier> = RecordType & any>(resource: string, params: CreateParams<any>) {
+        return { data: {} as ResultRecordType }
+    }
+    async delete<RecordType extends RaRecord<Identifier> = any>(resource: string, params: DeleteParams<RecordType>) {
+        return { data: {} as RecordType }
+    }
+    async deleteMany<RecordType extends RaRecord<Identifier> = any>(resource: string, params: DeleteManyParams<RecordType>) {
+        const sampleId: RecordType['id'] = ''
+        const data: RecordType['id'][] = [sampleId]
+        return { data }
+    }
+    toReactAdmin(data: any) {
         if (Array.isArray(data)) {
             for (const obj of data)
-                this.toId(obj)
+                this.toReactAdmin(obj)
         } else if (typeof data === 'object') {
-            if (data._id !== undefined) {
-                data.id = data._id
-                delete data._id
+            for (const prop in data) {
+                if (data[prop] instanceof ObjectId) {
+                    data[prop] = (data[prop] as ObjectId).toHexString()
+                    if (prop === '_id') {
+                        data.id = data._id
+                        delete data._id
+                    }
+                }
             }
         }
         return data
     }
-    to_Id(data: any) {
+    toMongoDB(data: any) {
         if (Array.isArray(data)) {
             for (const obj of data)
-                this.to_Id(obj)
+                this.toMongoDB(obj)
         } else if (typeof data === 'object') {
-            if (data.id !== undefined) {
-                data._id = data.id
-                delete data.id
+            for (const prop in data) {
+                if (typeof data[prop] === 'string' && data[prop].length === 24 && prop.indexOf('_id') > 0) {
+                    data[prop] = new ObjectId(data[prop])
+                    if (prop === 'id') {
+                        data._id = data.id
+                        delete data.id
+                    }
+                }
             }
         }
         return data
