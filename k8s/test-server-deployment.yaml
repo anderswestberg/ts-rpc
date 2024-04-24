@@ -16,9 +16,6 @@ spec:
         - name: ts-rpc-server
           image: anderswestberg/ts-rpc-server
           imagePullPolicy: Always
-          env:
-            - name: SEQ_LOGGER
-              value: seq-1713267430
           ports:
             - containerPort: 3000
           resources:

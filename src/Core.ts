@@ -6,14 +6,14 @@ export const MAX_HEADER_LENGTH = 256
 export const HEADER_DELIMITER = '$'
 
 export interface IGenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown> {
-    pipe(target: IGenericModule)
-    receive(message: I, source: string, target: string): Promise<void>
-    receivePayload(payload: IP, source: string, target: string): Promise<void>
-    send(message: O, source: string, target: string): Promise<void>
-    sendPayload(payload: OP, messageType: MessageType, source: string, target: string): Promise<void>
+    pipe(target: IGenericModule): void
+    receive(message: I, source: string, target?: string): Promise<void>
+    receivePayload(payload: IP, source: string, target?: string): Promise<void>
+    send(message: O, source: string, target?: string): Promise<void>
+    sendPayload(payload: OP, messageType: MessageType, source: string, target?: string): Promise<void>
     ready(): Promise<boolean>
     getName(): string
-    targetExists(name: string, level?: number): IGenericModule
+    targetExists(name: string, level?: number): IGenericModule | undefined
     isTransport(): boolean
 }
 
@@ -30,7 +30,7 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
     readyFlag = false
     seq = 0
 
-    constructor(public name?: string, sources?: IGenericModule<unknown, unknown, I, IP>[]) {
+    constructor(public name: string, sources?: IGenericModule<unknown, unknown, I, IP>[]) {
         super()
         if (!name)
             this.name = uuidv4()
@@ -59,7 +59,7 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
         return result
     }
     extractHeader(message: string | Uint8Array): [MessageHeader | undefined, string | Uint8Array] {
-        let result: [MessageHeader | undefined, string | Uint8Array]
+        let result: [MessageHeader | undefined, string | Uint8Array] = [undefined, '']
         if (typeof message === 'string') {
             let header: MessageHeader
             let nullPos = message.indexOf(HEADER_DELIMITER)
@@ -103,19 +103,19 @@ export class GenericModule<I = unknown, IP = unknown, O = unknown, OP = unknown>
         return this.name
     }
 
-    targetExists(name: string, level: number = 0) {
-        if (level > 5)
+    targetExists(name: string, level?: number) {
+        if (level && level > 5)
             console.log('Ooops')
-        let result: IGenericModule
+        let result: IGenericModule | undefined
         if (this.name === name) {
             // eslint-disable-next-line @typescript-eslint/no-this-alias
-            result = this
+            result = this as IGenericModule
         }
         if (GenericModule.knownSources[name])
             result = GenericModule.knownSources[name]
         if (!result) {
             this.destinations.map(dest => {
-                if (!result && !dest.target.isTransport() && dest.target.targetExists(name, level + 1))
+                if (!result && !dest.target.isTransport() && dest.target.targetExists(name, (level ? level : 0) + 1))
                     result = dest.target
             })
         }
@@ -163,11 +163,11 @@ export interface Payload {
 }
 
 export class Message<P = Payload> {
-    type: MessageType
-    payload: P
+    type?: MessageType
+    payload?: P
 }
 
-const makeMessage = <M extends Message<MP>, MP extends Payload>(payload: MP, source: string, target: string, messageType: MessageType): M => {
+const makeMessage = <M extends Message<MP>, MP extends Payload>(payload: MP, source: string, target: string | undefined, messageType: MessageType): M => {
     const result = new Message()
     result.type = messageType ? messageType : MessageType.UnknownMessage
     result.payload = payload
@@ -175,8 +175,8 @@ const makeMessage = <M extends Message<MP>, MP extends Payload>(payload: MP, sou
 }
 
 export class MessageModule<I extends Message<IP>, IP extends Payload, O extends Message<OP>, OP extends Payload> extends GenericModule<I, IP, O, OP> {
-    constructor(public name?: string, sources?: IGenericModule<Message, unknown, I, IP>[]) {
-        super()
+    constructor(public name: string, sources?: IGenericModule<Message, unknown, I, IP>[]) {
+        super(name)
         if (!name)
             this.name = uuidv4()
         if (sources) {
@@ -199,14 +199,14 @@ export class MessageModule<I extends Message<IP>, IP extends Payload, O extends 
         return Promise.resolve()
     }
 
-    async send(message: O, source: string, target: string) {
+    async send(message: O, source: string, target?: string) {
         await Promise.all(
             this.destinations.map(async (dest) => {
                 return await dest.target.receive(message, source, target)
             })
         )
     }
-    async sendPayload(payload: OP, messageType: MessageType, source: string, target: string) {
+    async sendPayload(payload: OP, messageType: MessageType, source: string, target?: string) {
         const message = makeMessage<O, OP>(payload, this.name, target, messageType)
         await this.send(message, source, target)
     }

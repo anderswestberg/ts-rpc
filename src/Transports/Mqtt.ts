@@ -3,11 +3,13 @@ import * as mqtt from 'mqtt'
 import { GenericModule, IGenericModule } from '../Core.js'
 
 export class MqttTransport extends GenericModule<string | Uint8Array, unknown, string | Uint8Array, unknown> {
-    client: mqtt.MqttClient
+    client?: mqtt.MqttClient
     connected = false
 
-    constructor(public server: boolean, url: string, public mqttName: string, name?: string, sources?: IGenericModule<unknown, unknown, string, unknown>[]) {
+    constructor(name: string, url: string, public topic?: string, sources?: IGenericModule<unknown, unknown, string, unknown>[]) {
         super(name, sources)
+        if (!this.topic)
+            this.topic = this.name
         this.open(url)
     }
     topicName(target: string) {
@@ -24,7 +26,7 @@ export class MqttTransport extends GenericModule<string | Uint8Array, unknown, s
         })
         this.client.on('connect', () => {
             this.connected = true
-            this.client.subscribe(this.topicName(this.mqttName))
+            this.client?.subscribe(this.topicName(this.topic!))
         })
         this.client.on('close', () => {
             this.connected = false
@@ -33,11 +35,11 @@ export class MqttTransport extends GenericModule<string | Uint8Array, unknown, s
     }
     async receive(message: string | Uint8Array, source: string, target: string) {
         if (typeof message === 'string')
-            this.client.publish(this.topicName(target), this.prependHeader(source, target, message) as string)
+            this.client?.publish(this.topicName(target), this.prependHeader(source, target, message) as string)
         else {
             const messageArray = this.prependHeader(source, target, message) as Uint8Array
             const buffer = Buffer.from(messageArray.buffer, messageArray.byteOffset, messageArray.byteLength)
-            this.client.publish(this.topicName(target), buffer)
+            this.client?.publish(this.topicName(target), buffer)
         }
     }
     isTransport() {

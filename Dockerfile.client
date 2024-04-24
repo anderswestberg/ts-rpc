@@ -18,5 +18,5 @@ EXPOSE 3000
 ENV PORT 3000
 
 # Run app.js when the container launches
-CMD ["node", "--inspect=0.0.0.0:9229", "./dist/test/nodejs-client/NodeClientTest.js"]
+CMD ["node", "--inspect=0.0.0.0:9229", "./dist/examples/nodejs-client/NodeClientTest.js"]
 SHELL ["/bin/bash", "-c"]

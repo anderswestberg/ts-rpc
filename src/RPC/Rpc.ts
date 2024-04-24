@@ -5,7 +5,7 @@ export interface IManageRpc {
     exposeObject(obj: object, name: string): void
     // eslint-disable-next-line @typescript-eslint/ban-types
     expose(methodName: string, method: Function): void
-    createRpcInstance(className: string, instanceName: string, ...args: unknown[]): Promise<string | undefined>
+    createRpcInstance(className: string, instanceName?: string, ...args: unknown[]): Promise<string | undefined>
 }
 
 export const isEventFunction = (prop: string) =>

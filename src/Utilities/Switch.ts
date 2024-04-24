@@ -9,10 +9,10 @@ export class Switch extends GenericModule {
     constructor(
         sources: IGenericModule[],
         public getTarget?: (target: string) => IGenericModule) {
-        super(undefined, sources)
+        super('', sources)
     }
     async receive(message: Message, source: string, target: string) {
-        let switchTarget: IGenericModule
+        let switchTarget: IGenericModule | undefined
         if (this.getTarget)
             switchTarget = this.getTarget(target)
         if (!switchTarget)
@@ -52,7 +52,7 @@ export class Switch extends GenericModule {
     targetExists(name: string, level: number = 0) {
         if (level > 5)
             console.log('Ooops')
-        let result: IGenericModule
+        let result: IGenericModule | undefined
         this.targets.forEach(target => {
             if (!result && !target.isTransport() && target.targetExists(name, level + 1))
                 result = target

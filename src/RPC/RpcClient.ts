@@ -32,32 +32,33 @@ export type PromiseResolver<T> = { resolve: (result: T) => void; reject: (reason
 
 export class RpcClient extends MessageModule<Message<RpcMessage>, RpcMessage, Message<RpcMessage>, RpcMessage> implements RpcClientEmitter {
     responsePromiseMap = new Map<string, PromiseResolver<unknown>>()
-    eventEmitter = new EventEmitter()
-    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[], public target?: string | string[]) {
+    eventEmitter: { [index: string]: unknown } = (new EventEmitter()) as unknown as { [index: string]: unknown }
+    constructor(name: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[], public target?: string | string[]) {
         super(name, sources)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async receive(message: Message<RpcMessage>, target: string) {
-        if (isEventMessage(message.payload)) {
-            this.eventEmitter.emit(message.payload.event, ...message.payload.params)
+        if (message.payload && isEventMessage(message.payload)) {
+            if (this.eventEmitter instanceof EventEmitter)
+                this.eventEmitter.emit(message.payload.event, ...message.payload.params)
             this.emit(message.payload.event, message.payload.params)
             return
         }
-        let promise: PromiseResolver<unknown>
-        if (isSuccessResponse(message.payload)) {
+        let promise: PromiseResolver<unknown> | undefined
+        if (message.payload && isSuccessResponse(message.payload)) {
             promise = this.responsePromiseMap.get(message.payload.id)
             this.responsePromiseMap.delete(message.payload.id)
         }
         if (!promise) {
             return
         }
-        if (isErrorResponse(message.payload)) {
+        if (message.payload && isErrorResponse(message.payload)) {
             promise.reject(new RpcError(message.payload.code))
-        } else if (isSuccessResponse(message.payload)) {
+        } else if (message.payload && isSuccessResponse(message.payload)) {
             promise.resolve(message.payload.result)
         } else
-            promise.reject('Invalid response type: ' + message.payload.type)
+            promise.reject('Invalid response type: ' + message.payload ? message.payload!.type : '<unknown>')
     }
 
     /**
@@ -66,7 +67,7 @@ export class RpcClient extends MessageModule<Message<RpcMessage>, RpcMessage, Me
      * @param additionalParameter The (optional) additionalParameter to include. See the JsonRpc class for more details.
      * @param params
      */
-    public call(remote: string, instanceName: string, method: string, ...params: unknown[]): Promise<unknown> {
+    public call(remote: string | undefined, instanceName: string, method: string, ...params: unknown[]): Promise<unknown> {
         const payload: RpcCallInstanceMethodPayload = {
             id: uuidv4(),
             type: RpcMessageType.CallInstanceMethod,
@@ -92,20 +93,24 @@ export class RpcClient extends MessageModule<Message<RpcMessage>, RpcMessage, Me
      * on the server if it does not already exist.
      */
     api(name: string, remote?: string) {
-        const proxyObj = {}
+        const proxyObj: { [index: string]: unknown } = {}
         return new Proxy(proxyObj, {
             get: (target, prop) => {
-                if (target[prop]) {
-                    return target[prop]
-                } else if (typeof (prop) === 'string' && isEventFunction(prop)) {
-                    target[prop] = (...args: unknown[]) => {
-                        (this.eventEmitter[prop] as (...args: unknown[]) => void)(...args)
-                        return this.call(remote, name, prop, args[0])
+                let result: unknown
+                if (typeof (prop) === 'string') {
+                    if (target[prop]) {
+                        return target[prop]
+                    } else if (isEventFunction(prop)) {
+                        target[prop] = (...args: unknown[]) => {
+                            (this.eventEmitter[prop] as (...args: unknown[]) => void)(...args)
+                            return this.call(remote, name, prop, args[0])
+                        }
+                    } else {
+                        target[prop] = (...args: unknown[]) => this.call(remote, name, prop as string, ...args)
                     }
-                } else {
-                    target[prop] = (...args: unknown[]) => this.call(remote, name, prop as string, ...args)
+                    result = target[prop]
                 }
-                return target[prop]
+                return result
             }
         })
     }

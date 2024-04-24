@@ -12,26 +12,13 @@
             "webRoot": "${workspaceFolder}/web-client"
         },
         {
-            "name": "Launch Tst DP",
-            "program": "${workspaceFolder}/dist/test/test-dataProvider/index.js",
-            "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "node",
-            "env": {
-                "SEQ_LOGGER": "localhost",
-                "SEQ_API_KEY": "lx9nIkLTGXe6lHzAUJqH"
-            }
-        },
-        {
             "type": "node",
             "request": "launch",
             "name": "Test Server",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/dist/test/nodejs-server/NodeServerTest.js",
+            "program": "${workspaceFolder}/dist/examples/nodejs-server/NodeServerTest.js",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
@@ -43,7 +30,7 @@
         },
         {
             "name": "Test Client",
-            "program": "${workspaceFolder}/dist/test/nodejs-client/NodeClientTest.js",
+            "program": "${workspaceFolder}/dist/examples/nodejs-client/NodeClientTest.js",
             "request": "launch",
             "skipFiles": [
                 "<node_internals>/**"
@@ -58,13 +45,40 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/dist/test/nodejs-server/NodeServerTest.js",
+            "program": "${workspaceFolder}/dist/examples/nodejs-server/NodeServerTest.js",
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ],
             "args": ["3001"],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Tests",
+            "runtimeArgs": [
+                "--experimental-vm-modules",
+            ],
+              "program": "${workspaceRoot}/node_modules/jest/bin/jest.js",
+            "args": [
+              "--collectCoverage=false",
+              "--colors",
+              "--config",
+              "${workspaceRoot}/jest.config.ts",
+              "--runInBand",
+              "--testTimeout=10000000"
+            ],
+            "outputCapture": "std",
+            "internalConsoleOptions": "openOnSessionStart",
+            "envFile": "${workspaceRoot}/.env",
+            "skipFiles": [
+              "${workspaceRoot}/../../node_modules/**/*",
+              "<node_internals>/**/*"
+            ],
+            "windows": {
+              "skipFiles": ["C:\\**\\node_modules\\**\\*", "<node_internals>/**/*"]
+            },
+          }        
     ]
 }

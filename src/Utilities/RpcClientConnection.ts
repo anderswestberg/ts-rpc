@@ -4,10 +4,10 @@ import { RpcClient } from "../RPC/RpcClient.js"
 import { JsonParser, JsonStringifierToUint8Array, MsgPackDecoder, MsgPackEncoder } from "./Converters.js"
 
 export class RpcClientConnection {
-    parser: JsonParser
-    rpcClient: RpcClient
-    stringifier: JsonStringifierToUint8Array<object>
-    manageRpc: IManageRpc
+    parser?: JsonParser
+    rpcClient?: RpcClient
+    stringifier?: JsonStringifierToUint8Array<object>
+    manageRpc?: IManageRpc
     readyFlag = false
     constructor(public name: string, public transport: GenericModule, public defaultTarget?: string) {
         this.init()
@@ -29,7 +29,7 @@ export class RpcClientConnection {
     async api<T>(name: string, target?: string) {
         await this.ready()
         return {
-            proxy: this.rpcClient.api(name, target ? target : this.defaultTarget) as T
+            proxy: this.rpcClient?.api(name, target ? target : this.defaultTarget) as T
         }
     }
 }

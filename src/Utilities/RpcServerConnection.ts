@@ -4,16 +4,16 @@ import { JsonParser, JsonStringifierToUint8Array, MsgPackDecoder, MsgPackEncoder
 import { Switch } from "./Switch.js"
 
 export class RpcServerConnection {
-    parser: JsonParser
-    rpcServer: RpcServer
-    stringifier: JsonStringifierToUint8Array<object>
+    parser?: JsonParser
+    rpcServer?: RpcServer
+    stringifier?: JsonStringifierToUint8Array<object>
     readyFlag = false
-    switch: Switch
+    switch?: Switch
     constructor(public name: string, public transports: GenericModule[]) {
         this.init()
     }
     addTarget(target: string, transport: GenericModule) {
-        this.switch.setTarget(transport)
+        this.switch?.setTarget(transport)
     }
     async init() {
         //this.parser = new JsonParser(this.transports)

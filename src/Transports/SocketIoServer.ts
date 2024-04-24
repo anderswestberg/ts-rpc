@@ -6,8 +6,7 @@ import { GenericModule, IGenericModule } from '../Core.js'
 export class SocketIoServer extends GenericModule<string | Uint8Array, unknown, string | Uint8Array, unknown> {
     closed = false
     io: SocketIo.Server
-    server: HttpServer | HttpsServer
-    constructor(server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IGenericModule<unknown, unknown, unknown, unknown>[], name?: string) {
+    constructor(name: string, public server?: HttpServer | HttpsServer, port?: number, https?: boolean, sources?: IGenericModule[]) {
         super(name, sources)
         if (!server)
             this.server = https ? createHttpsServer() : createHttpServer()

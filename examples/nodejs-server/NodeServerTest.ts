@@ -1,4 +1,3 @@
-import { HttpRpcServer } from '../../src/Utilities/HttpRpcServer.js'
 import { SocketIoServer, RpcServerConnection, MqttTransport } from '../../src/index.js'
 import { ITestRpc } from './ITestRpc.js'
 import EventEmitter from 'events'
@@ -39,25 +38,25 @@ const main = async () => {
         name = 'rpcServer2'
     for (; ;) {
         try {
-            const transport = new SocketIoServer(undefined, port, false, [], name)
-            const transport2 = new MqttTransport(true, 'mqtt://emqx-service:1883', name)
+            const transport = new SocketIoServer(name, undefined, port, false, [])
+            const transport2 = new MqttTransport(name, 'mqtt://emqx-service:1883')
             //const transport2 = new MqttTransport(true, 'mqtt://localhost:1883', name)
             const testRpc = new TestRpc(10)
 
             const rpcServerConnection = new RpcServerConnection(name, [transport, transport2])
 
             // Expose a function
-            rpcServerConnection.rpcServer.manageRpc.exposeObject({
+            rpcServerConnection.rpcServer?.manageRpc.exposeObject({
                 hello: (arg: string) => {
                     console.log(arg)
                     return arg + ' world!'
                 }
             }, 'MyRpc')
 
-            rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(testRpc, 'testRpc')
-            rpcServerConnection.rpcServer.manageRpc.exposeClass(TestRpc)
+            rpcServerConnection.rpcServer?.manageRpc.exposeClassInstance(testRpc, 'testRpc')
+            rpcServerConnection.rpcServer?.manageRpc.exposeClass(TestRpc)
             const dataProvider = new DataProvider()
-            rpcServerConnection.rpcServer.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
+            rpcServerConnection.rpcServer?.manageRpc.exposeClassInstance(dataProvider, 'dataProvider')
 
             /*
             server.listen(port, () => {
@@ -66,7 +65,7 @@ const main = async () => {
 
             for (; ;) {
                 await new Promise(res => setTimeout(res, 5000))
-                rpcServerConnection.rpcServer.manageRpc.seqLogger.log('Information', 'Hello')
+                rpcServerConnection.rpcServer?.manageRpc.logger.log('Information', 'Hello')
                 testRpc.emit('hejsan', 1, 2, 5)
                 testRpc.emit('svejsan', Math.PI)
             }

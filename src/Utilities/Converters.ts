@@ -3,11 +3,12 @@ import { GenericModule, IGenericModule } from '../Core.js'
 import { encode as msgPackEncode, decode as msgPackDecode } from '@msgpack/msgpack'
 
 export class Converter<I = unknown, O = unknown> extends GenericModule<I, unknown, O, unknown> {
-    constructor(sources: IGenericModule<unknown, unknown, I, unknown>[], public converter: (message: I) => O) {
-        super(undefined, sources)
+    constructor(sources?: IGenericModule<unknown, unknown, I, unknown>[], public converter?: (message: I) => O) {
+        super('', sources)
     }
     async receive(message: I, source: string, target: string) {
-        await this.send(this.converter(message), source, target)
+        if (this.converter)
+            await this.send(this.converter(message), source, target)
     }
 }
 
@@ -42,12 +43,15 @@ export class MsgPackEncoder<I extends object> extends Converter<I, Uint8Array> {
     }
 }
 
-export class MsgPackDecoder extends Converter<string, object> {
-    constructor(sources?: IGenericModule<unknown, unknown, string | Uint8Array, unknown>[]) {
+export class MsgPackDecoder extends Converter<string | Uint8Array, object> {
+    constructor(sources?: IGenericModule<unknown, unknown, string | Uint8Array>[]) {
         super(sources, (msg: string | Uint8Array) => {
-            let result
+            let result = {}
+            let received: unknown
             if (typeof msg === 'object')
-                result = msgPackDecode(msg)
+                received = msgPackDecode(msg)
+            if (typeof received === 'object')
+                    result = received as object
             return result
         })
     }

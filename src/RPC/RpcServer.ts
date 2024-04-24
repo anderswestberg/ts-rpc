@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { IManageRpc } from './Rpc.js'
 import EventEmitter from 'events'
 import { RpcClientConnection } from '../Utilities/RpcClientConnection.js'
-import { SeqLogger } from '../Logging/SeqLogger.js'
+import { ILogger, LogLevel } from '../Logging/ILogger.js'
 
 export enum RpcMessageType { CallInstanceMethod = 'POST', success = 'SUCCESS', error = 'ERROR', event = 'EVENT' }
 
@@ -41,6 +41,12 @@ class EventProxy {
     }
 }
 
+export type BindObject = {
+    [index: string]: (...args: unknown[]) => unknown
+}
+
+export type ObjectByString = { [index: string]: unknown }
+
 const isRpcCallInstanceMethodPayload = (payload: RpcMessage): payload is RpcCallInstanceMethodPayload => {
     return (payload.type === RpcMessageType.CallInstanceMethod)
 }
@@ -49,14 +55,15 @@ export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Me
     manageRpc = new ManageRpc()
     eventProxies = new Map<{ instanceName: string, event: string, source: string }, EventProxy>()
 
-    constructor(name?: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
+    constructor(name: string, sources?: GenericModule<unknown, unknown, Message, RpcMessage>[]) {
         super(name, sources)
-        this.manageRpc.seqLogger.log('Information', 'RpcServer {name} starting', { name })
+        this.manageRpc.logger?.log('Information', 'RpcServer {name} starting', { name })
     }
 
     async receive(message: Message<RpcMessage>, source: string, target: string) {
-        this.manageRpc.seqLogger.log('Debug', 'RpcServer {name} received message type {type} from {source} to {target}: {message}', { name: this.name, type: message.type, source, target, message: JSON.stringify(message) })
-        this.receivePayload(message.payload, source, target)
+        this.manageRpc.logger?.log('Debug', 'RpcServer {name} received message type {type} from {source} to {target}: {message}', { name: this.name, type: message.type, source, target, message: JSON.stringify(message) })
+        if (message.payload)
+            this.receivePayload(message.payload, source, target)
     }
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async receivePayload(payload: RpcMessage, source: string, target: string) {
@@ -98,16 +105,9 @@ export class RpcServer extends MessageModule<Message<RpcMessage>, RpcMessage, Me
     }
 }
 
-export const createInstance = (className: string, ...args: unknown[]): object => {
-    // Get a reference to the class constructor function using the global object
-    const ClassConstructor = (global as unknown)[className]
-
-    // Check if the constructor exists
-    if (typeof ClassConstructor === 'function') {
-        // Create an instance of the class with the provided arguments
-        return new ClassConstructor(...args)
-    } else {
-        throw new Error(`Class '${className}' not found`)
+class DummyLogger implements ILogger {
+    log(level: LogLevel, messageTemplate: string, properties?: { [key: string]: unknown } | undefined) {
+        console.log(`LEVEL ${ level.toString() }, messageTemplate: ${ messageTemplate }, properties: "${ properties ? JSON.stringify(properties) : '<empty>' }"`)
     }
 }
 
@@ -117,11 +117,11 @@ export class ManageRpc implements IManageRpc {
     exposedClasses: { [className: string]: new (...args: unknown[]) => unknown } = {}
     createdInstances = new Map<string, object>()
     rpcClientConnections: { [url: string]: RpcClientConnection } = {}
-    seqLogger: SeqLogger
-    constructor() {
+    
+    constructor(public logger: ILogger = new DummyLogger()) {
         this.exposeClassInstance(this, ManageRpc.name.charAt(0).toLowerCase() + ManageRpc.name.slice(1))
-        this.seqLogger = new SeqLogger(`http://${process.env.SEQ_LOGGER}:5341`, process.env.SEQ_API_KEY)
-        this.exposeClassInstance(this.seqLogger, SeqLogger.name.charAt(0).toLowerCase() + SeqLogger.name.slice(1))
+        if (this.logger)
+            this.exposeClassInstance(this.logger, 'logger')
     }
     getNameSpaceMethodMap(name: string) {
         let result = this.exposedNameSpaceMethodMaps[name]
@@ -145,13 +145,14 @@ export class ManageRpc implements IManageRpc {
         // All methods was found.
         const map = this.getNameSpaceMethodMap(name)
         for (const f of props) {
-            if (f !== 'constructor' && typeof instance[f] === 'function') {
-                map.set(f, instance[f].bind(instance))
+            if (f !== 'constructor' && typeof (instance as ObjectByString)[f] === 'function') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                map.set(f, (instance as BindObject)[f].bind(instance))
             }
         }
     }
 
-    exposeClass<T>(constructor: new (...args: unknown[]) => T, aliasName?: string) {
+    exposeClass<T>(constructor: new () => T, aliasName?: string) {
         let name = constructor.name
         if (aliasName)
             name = aliasName
@@ -162,9 +163,9 @@ export class ManageRpc implements IManageRpc {
         this.exposedNameSpaceInstances[name] = obj
         const props = Object.getOwnPropertyNames(obj)
         for (const f of props) {
-            if (f !== 'constructor' && typeof obj[f] === 'function') {
+            if (f !== 'constructor' && typeof (obj as ObjectByString)[f] === 'function') {
                 const map = this.getNameSpaceMethodMap(name)
-                map.set(f, obj[f])
+                map.set(f, (obj as BindObject)[f])
             }
         }
     }
@@ -174,12 +175,12 @@ export class ManageRpc implements IManageRpc {
         map.set(methodName, method)
     }
     async createRpcInstance(className: string, instanceName: string, ...args: unknown[]) {
-        let result: string
+        let result: string = ''
         const con = this.exposedClasses[className]
         if (con) {
             const id = instanceName ? instanceName : uuidv4()
             const instance = new con(...args)
-            this.createdInstances[id] = instance
+            this.createdInstances.set(id, instance as ObjectByString)
             this.exposeClassInstance(instance as object, id)
             result = id
         }

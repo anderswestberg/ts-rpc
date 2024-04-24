@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "declaration": true,
     "outDir": "./dist",
     "sourceMap": true,
@@ -10,7 +10,10 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true
   },
   "exclude": ["./dist", "./web-client", "./node_modules"]
 }

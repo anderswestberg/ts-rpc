@@ -127,7 +127,7 @@ let rpcConn: RpcClientConnection
 export const getDataProvider = async () => {
     let result;
     if (!transport) {
-        transport = new SocketIoTransport('http://localhost:3000')
+        transport = new SocketIoTransport('test', 'http://localhost:3000')
         rpcConn = new RpcClientConnection('app.emellio', transport, 'rpcServer1')
         await rpcConn.ready()
         result = (await rpcConn.api('dataProvider'))
